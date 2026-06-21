@@ -1,57 +1,218 @@
 body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI";
-    background: #f5f6f8;
-  }
-  
-  /* App 外框 */
-  .container {
-    max-width: 420px;
-    margin: 0 auto;
-    padding: 16px;
-  }
-  
-  /* 標題 */
-  h2 {
-    text-align: center;
-    margin: 10px 0 20px;
-  }
-  
-  /* 卡片 */
-  .card {
-    background: white;
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  }
-  
-  /* 輸入框 */
-  input {
-    width: 100%;
-    padding: 12px;
-    margin: 6px 0;
-    border-radius: 10px;
-    border: 1px solid #ddd;
-    font-size: 16px;
-  }
-  
-  /* 按鈕 */
-  button {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 10px;
-    background: #007aff;
-    color: white;
-    font-size: 16px;
-    margin-top: 8px;
-  }
-  
-  /* 資料顯示 */
-  .row {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    border-bottom: 1px solid #eee;
-  }
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI";
+  background: #f5f6f8;
+}
+
+/* App 外框 */
+.container {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* 標題 */
+h2 {
+  text-align: center;
+  margin: 10px 0 20px;
+}
+
+h3 {
+  margin: 0 0 4px;
+}
+
+/* 卡片 */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 輸入框 */
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 6px 0;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+/* 按鈕 */
+button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #007aff;
+  color: white;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+button:active {
+  opacity: 0.8;
+}
+
+/* 資料顯示 */
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+/* 現金 row 裡的 input 不需要滿版樣式 */
+.price-row input {
+  width: 110px;
+  margin: 0;
+  padding: 8px;
+  text-align: right;
+}
+
+/* ===== 資產總額卡片 ===== */
+.total-card {
+  background: linear-gradient(135deg, #007aff, #5856d6);
+  color: white;
+  text-align: center;
+}
+
+.total-label {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.total-value {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 6px 0 10px;
+}
+
+.total-sub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+/* ===== 自動完成下拉選單 ===== */
+.autocomplete-wrap {
+  position: relative;
+}
+
+.suggest-list {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  margin-top: -2px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.suggest-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-size: 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.suggest-item:last-child {
+  border-bottom: none;
+}
+
+.suggest-item:active {
+  background: #f5f6f8;
+}
+
+.suggest-price {
+  color: #007aff;
+  font-weight: 600;
+}
+
+/* ===== 股價更新狀態文字 ===== */
+.price-status {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  margin-top: 6px;
+}
+
+/* ===== 股票清單 ===== */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ghost-btn {
+  width: auto;
+  margin-top: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: white;
+  color: #007aff;
+  border: 1px solid #007aff;
+}
+
+.stock-row {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.stock-row:last-child {
+  border-bottom: none;
+}
+
+.stock-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.stock-id {
+  font-size: 16px;
+}
+
+.del-btn {
+  width: auto;
+  margin-top: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #fff0f0;
+  color: #ff3b30;
+}
+
+.empty-tip {
+  text-align: center;
+  color: #999;
+  padding: 16px 0;
+  font-size: 14px;
+}
+
+/* 損益顏色（台股習慣：紅漲綠跌） */
+.pl-pos {
+  color: #ff3b30;
+  font-weight: 600;
+}
+
+.pl-neg {
+  color: #34c759;
+  font-weight: 600;
+}

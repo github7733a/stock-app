@@ -1,33 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <title>Stock App</title>
+  <title>股票資產管理</title>
   <link rel="stylesheet" href="style.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 </head>
 <body>
+<div class="container">
 
-<h2>股票資產管理</h2>
+  <h2>股票資產管理</h2>
 
-<!-- 現金 -->
-<h3>現金</h3>
-<input id="cashInput" type="number" placeholder="輸入現金">
-<button onclick="saveCash()">儲存現金</button>
-<div>現金：<span id="cashDisplay">0</span></div>
+  <!-- 資產總額 -->
+  <div class="card total-card">
+    <div class="total-label">資產總額</div>
+    <div class="total-value" id="totalDisplay">NT$ 0</div>
+    <div class="total-sub">
+      <span>現金 <b id="totalCash">NT$ 0</b></span>
+      <span>股票市值 <b id="totalStocks">NT$ 0</b></span>
+    </div>
+  </div>
 
-<hr>
+  <!-- 現金 -->
+  <div class="card">
+    <h3>現金</h3>
+    <input id="cashInput" type="number" placeholder="輸入現金">
+    <button onclick="saveCash()">儲存現金</button>
+    <div class="row"><span>目前現金</span><span id="cashDisplay">NT$ 0</span></div>
+  </div>
 
-<!-- 股票 -->
-<h3>新增股票</h3>
+  <!-- 新增股票 -->
+  <div class="card">
+    <h3>新增股票</h3>
 
-<input id="stockName" placeholder="股票代號 (ex 2330)">
-<input id="stockQty" type="number" placeholder="股數">
-<input id="stockCost" type="number" placeholder="成本價">
-<button onclick="addStock()">新增</button>
+    <div class="autocomplete-wrap">
+      <input id="stockName" placeholder="輸入股票代號或名稱 (ex 2330 / 台積電)" autocomplete="off">
+      <div id="suggestList" class="suggest-list"></div>
+    </div>
 
-<h3>股票清單</h3>
-<div id="stockList"></div>
+    <input id="stockQty" type="number" placeholder="股數">
+    <input id="stockCost" type="number" placeholder="成本價 (每股，選填)">
+
+    <div class="row price-row">
+      <span>目前股價</span>
+      <input id="stockPrice" type="number" placeholder="自動帶入，也可手動修改">
+    </div>
+    <div class="row"><span>預估市值</span><span id="estValue">NT$ 0</span></div>
+
+    <button onclick="addStock()">新增</button>
+    <div id="priceStatus" class="price-status"></div>
+  </div>
+
+  <!-- 股票清單 -->
+  <div class="card">
+    <div class="list-header">
+      <h3>股票清單</h3>
+      <button class="ghost-btn" onclick="refreshPrices(true)">更新股價</button>
+    </div>
+    <div id="stockList"></div>
+  </div>
+
+</div>
 
 <script src="app.js"></script>
 </body>

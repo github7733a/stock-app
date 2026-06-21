@@ -2,75 +2,133 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <title>股票資產管理</title>
+  <title>資產管理</title>
   <link rel="stylesheet" href="style.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 </head>
 <body>
 <div class="container">
 
-  <h2>股票資產管理</h2>
+  <h2>資產管理</h2>
 
-  <!-- 資產總額（現金可直接在這裡修改） -->
-  <div class="card total-card">
-    <div class="total-label">資產總額</div>
-    <div class="total-value" id="totalDisplay">NT$ 0</div>
-    <div class="total-sub">
-      <div class="total-sub-item">
-        <span>現金</span>
-        <b id="totalCash">NT$ 0</b>
-        <input id="cashEditInput" type="number" class="cash-input" style="display:none">
-        <button id="cashEditBtn" class="cash-edit-btn" onclick="toggleCashEdit()">修改</button>
+  <!-- ===== 主畫面 ===== -->
+  <div id="mainView">
+
+    <div class="card total-card">
+      <div class="total-top">
+        <div>
+          <div class="total-label">我的淨資產</div>
+          <div class="total-value" id="netWorthDisplay">NT$ 0</div>
+        </div>
+        <button class="fab-btn" onclick="openAddFlow()">＋</button>
       </div>
-      <div class="total-sub-item">
-        <span>股票市值</span>
-        <b id="totalStocks">NT$ 0</b>
+    </div>
+
+    <div class="card categories-card">
+
+      <div class="category-block">
+        <div class="category-row" onclick="toggleCategory('cash')">
+          <span class="category-name">流動資金 <span class="chev" id="cashChevron">▾</span></span>
+          <span class="category-amount" id="cashCategoryTotal">NT$ 0</span>
+        </div>
+        <div id="cashAccountList" class="account-list collapsed"></div>
+      </div>
+
+      <div class="category-block">
+        <div class="category-row" onclick="toggleCategory('invest')">
+          <span class="category-name">投資 <span class="chev" id="investChevron">▾</span></span>
+          <span class="category-amount" id="investCategoryTotal">NT$ 0</span>
+        </div>
+        <div id="investAccountList" class="account-list collapsed"></div>
+      </div>
+
+      <div class="category-block">
+        <div class="category-row" onclick="toggleCategory('debt')">
+          <span class="category-name">負債 <span class="chev" id="debtChevron">▾</span></span>
+          <span class="category-amount" id="debtCategoryTotal">NT$ 0</span>
+        </div>
+        <div id="debtAccountList" class="account-list collapsed"></div>
+      </div>
+
+    </div>
+
+    <div id="priceStatus" class="price-status"></div>
+  </div>
+
+  <!-- ===== 新增帳戶 覆蓋層 ===== -->
+  <div id="addFlowOverlay" class="overlay hidden">
+    <div class="overlay-header">
+      <button class="back-btn" onclick="closeAddFlow()">‹ 取消</button>
+      <span>新增帳戶</span>
+      <span class="header-spacer"></span>
+    </div>
+
+    <div class="overlay-body">
+      <div id="addStep1">
+        <p class="overlay-hint">選擇類別</p>
+        <button onclick="selectAddCategory('cash')">流動資金</button>
+        <button onclick="selectAddCategory('invest')">投資</button>
+        <button onclick="selectAddCategory('debt')">負債</button>
+      </div>
+
+      <div id="addStep2" class="hidden">
+        <p class="overlay-hint" id="addStep2Title">流動資金</p>
+
+        <div id="addInvestCodeWrap" class="autocomplete-wrap hidden">
+          <input id="addAccountCode" placeholder="輸入股票代號或名稱（選填，可不填自訂投資）" autocomplete="off">
+          <div id="addSuggestList" class="suggest-list"></div>
+        </div>
+
+        <input id="addAccountName" placeholder="帳戶名稱（例如：銀行存款 / 台積電）">
+
+        <input id="addAccountQty" type="number" placeholder="股數" class="hidden">
+        <input id="addAccountAmount" type="number" placeholder="金額">
+
+        <button onclick="submitAddAccount()">儲存</button>
       </div>
     </div>
   </div>
 
-  <!-- 新增股票（預設收合，填完自動收起來） -->
-  <div class="card">
-    <div class="list-header toggle-header" onclick="toggleAddForm()">
-      <h3>新增股票</h3>
-      <span id="addToggleIcon" class="toggle-icon">＋</span>
+  <!-- ===== 帳戶詳情 覆蓋層 ===== -->
+  <div id="detailOverlay" class="overlay hidden">
+    <div class="overlay-header">
+      <button class="back-btn" onclick="closeDetail()">‹ 返回</button>
+      <span>帳戶詳情</span>
+      <button class="back-btn danger" onclick="deleteAccount()">刪除</button>
     </div>
 
-    <div id="addFormBody" class="add-form-body collapsed">
-      <div class="autocomplete-wrap">
-        <input id="stockName" placeholder="輸入股票代號或名稱 (ex 2330 / 台積電)" autocomplete="off">
-        <div id="suggestList" class="suggest-list"></div>
+    <div class="overlay-body">
+      <div class="detail-header">
+        <div class="detail-name" id="detailName">—</div>
+        <div class="detail-balance" id="detailBalance">NT$ 0</div>
+        <div class="detail-qty-price hidden" id="detailQtyPriceRow">
+          <span id="detailQtyPriceText"></span>
+        </div>
       </div>
 
-      <input id="stockQty" type="number" placeholder="股數">
-      <input id="stockCost" type="number" placeholder="成本價 (每股，選填)">
-
-      <div class="row price-row">
-        <span>目前股價</span>
-        <input id="stockPrice" type="number" placeholder="自動帶入，也可手動修改">
+      <div class="detail-actions">
+        <button class="secondary-btn" onclick="showEditor('delta')"><span id="deltaBtnLabel">增減金額</span></button>
+        <button class="secondary-btn" onclick="showEditor('balance')">修改餘額</button>
       </div>
-      <div class="row"><span>預估市值</span><span id="estValue">NT$ 0</span></div>
 
-      <button onclick="addStock()">新增</button>
-      <div id="priceStatus" class="price-status"></div>
-    </div>
-  </div>
+      <div id="editorDelta" class="inline-editor hidden">
+        <input id="deltaInput" type="number" placeholder="輸入金額，減少請輸入負數">
+        <div class="editor-btn-row">
+          <button class="ghost-btn" onclick="cancelEditor()">取消</button>
+          <button onclick="confirmDelta()">確認</button>
+        </div>
+      </div>
 
-  <!-- 股票清單 -->
-  <div class="card">
-    <div class="list-header">
-      <h3>股票清單</h3>
-      <button class="ghost-btn" onclick="refreshPrices(true)">更新股價</button>
-    </div>
+      <div id="editorBalance" class="inline-editor hidden">
+        <input id="balanceInput" type="number" placeholder="輸入新的餘額">
+        <div class="editor-btn-row">
+          <button class="ghost-btn" onclick="cancelEditor()">取消</button>
+          <button onclick="confirmBalance()">確認</button>
+        </div>
+      </div>
 
-    <div class="stock-table-header">
-      <span>股名</span><span>股數</span><span>總損益</span><span></span>
-    </div>
-    <div id="stockList"></div>
-
-    <div class="stock-summary">
-      <div class="row"><span>總預估損益</span><span id="totalPL">NT$ 0</span></div>
-      <div class="row"><span>總報酬率</span><span id="totalReturnRate">-</span></div>
+      <h3 class="tx-title">變動紀錄</h3>
+      <div id="txList"></div>
     </div>
   </div>
 

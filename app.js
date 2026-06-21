@@ -1,42 +1,129 @@
 /* =========================================================
-   股票資產管理 app.js
-   功能：
-   1. 台股代號/名稱自動完成 + 自動帶入最新收盤價
-      （資料來源：證交所 TWSE OpenAPI + 櫃買中心 TPEx OpenAPI，
-       皆為「每日收盤後」更新一次，非即時報價。
-       實際呼叫是透過 /api/prices 這支 Cloudflare Pages Function
-       在伺服器端代抓，避免瀏覽器直接呼叫被 CORS 擋掉）
-   2. 依股數自動計算市值 / 損益
-   3. 資產總額（現金 + 股票市值），現金可直接在總覽卡片修改
-   4. 新增股票表單預設收合，新增成功後自動收起來
-   5. 股票清單精簡為「股名 / 股數 / 總損益」，底部顯示總損益與總報酬率
+   資產管理 app.js
+
+   資料結構（IndexedDB v3）：
+   - accounts: { id, category: 'cash'|'invest'|'debt', code(投資選填),
+                 name, qty, price, createdAt }
+     餘額固定 = qty * price。流動資金/負債的 qty 固定為 1，
+     price 就是餘額；投資可以是 qty 股 * 股價。
+   - transactions: { id, accountId, label, deltaType:'money'|'qty',
+                      deltaValue, resultBalance, resultQty, timestamp }
+     只有使用者主動操作（新增/增減/修改餘額）才會寫入，
+     每天自動更新股價不會產生紀錄。
+
+   股價資料來源同舊版：透過 /api/prices（Cloudflare Pages Function）
+   代抓證交所 + 櫃買中心，每天更新一次、非即時。
+
+   舊版資料（store 的 cash、stocks 表）會在第一次升級時
+   自動搬進新的 accounts / transactions。
    ========================================================= */
 
 let db;
-let priceList = [];          // [{code, name, price}]
+let priceList = [];
 let priceListUpdatedAt = null;
-let currentCash = 0;
-let cashEditing = false;
 
-const request = indexedDB.open("assetDB", 2);
+let expandedCategory = null;
+let addFlowCategory = null;
+let currentDetailAccountId = null;
+let activeEditor = null;
+
+const categoryLabels = { cash: "流動資金", invest: "投資", debt: "負債" };
+
+const request = indexedDB.open("assetDB", 3);
 
 request.onupgradeneeded = function (e) {
   const database = e.target.result;
+  const tx = e.target.transaction;
 
   if (!database.objectStoreNames.contains("store")) {
     database.createObjectStore("store");
   }
 
-  // 舊版 stocks store 沒有 key，無法正常寫入，重建一個有 id 的版本
-  if (database.objectStoreNames.contains("stocks")) {
+  const hasOldStocks = database.objectStoreNames.contains("stocks");
+  const hasAccounts = database.objectStoreNames.contains("accounts");
+  const hasTxStore = database.objectStoreNames.contains("transactions");
+
+  const accountsStore = hasAccounts
+    ? tx.objectStore("accounts")
+    : database.createObjectStore("accounts", { keyPath: "id", autoIncrement: true });
+
+  let txStore;
+  if (hasTxStore) {
+    txStore = tx.objectStore("transactions");
+  } else {
+    txStore = database.createObjectStore("transactions", { keyPath: "id", autoIncrement: true });
+    txStore.createIndex("accountId", "accountId", { unique: false });
+  }
+
+  // 舊版股票資料 -> 投資帳戶
+  if (hasOldStocks) {
+    const oldStockStore = tx.objectStore("stocks");
+    const now = Date.now();
+
+    oldStockStore.getAll().onsuccess = function (ev) {
+      const oldStocks = ev.target.result || [];
+      oldStocks.forEach(s => {
+        const qty = s.qty || 0;
+        const price = s.currentPrice != null ? s.currentPrice : (s.cost || 0);
+        const addReq = accountsStore.add({
+          category: "invest",
+          code: s.code || null,
+          name: s.name || s.code || "投資",
+          qty: qty,
+          price: price,
+          createdAt: now
+        });
+        addReq.onsuccess = function (addEv) {
+          const newId = addEv.target.result;
+          txStore.add({
+            accountId: newId,
+            label: "資料轉移",
+            deltaType: "money",
+            deltaValue: qty * price,
+            resultBalance: qty * price,
+            resultQty: qty,
+            timestamp: now
+          });
+        };
+      });
+    };
+
     database.deleteObjectStore("stocks");
   }
-  database.createObjectStore("stocks", { keyPath: "id", autoIncrement: true });
+
+  // 舊版現金 -> 流動資金帳戶
+  const oldStoreForCash = tx.objectStore("store");
+  oldStoreForCash.get("cash").onsuccess = function (ev) {
+    const cashVal = Number(ev.target.result) || 0;
+    if (cashVal > 0) {
+      const now2 = Date.now();
+      const addReq = accountsStore.add({
+        category: "cash",
+        code: null,
+        name: "現金",
+        qty: 1,
+        price: cashVal,
+        createdAt: now2
+      });
+      addReq.onsuccess = function (addEv) {
+        const newId = addEv.target.result;
+        txStore.add({
+          accountId: newId,
+          label: "資料轉移",
+          deltaType: "money",
+          deltaValue: cashVal,
+          resultBalance: cashVal,
+          resultQty: 1,
+          timestamp: now2
+        });
+      };
+    }
+  };
 };
 
 request.onsuccess = async function (e) {
   db = e.target.result;
-  loadCash();
+  renderAll();
   await ensurePriceList();
 };
 
@@ -50,6 +137,11 @@ function fmt(n) {
   const num = Number(n) || 0;
   const sign = num < 0 ? "-" : "";
   return sign + "NT$ " + Math.round(Math.abs(num)).toLocaleString("zh-TW");
+}
+
+function fmtQty(n) {
+  const num = Number(n) || 0;
+  return (Math.round(num * 100) / 100).toString();
 }
 
 function todayKey() {
@@ -95,8 +187,6 @@ async function fetchPriceList() {
     });
   }
 
-  // 透過 /api/prices（Cloudflare Pages Function）在伺服器端代抓，
-  // 避免瀏覽器直接打證交所/櫃買中心 API 時被 CORS 擋下來。
   try {
     const res = await fetch("/api/prices");
     if (res.ok) {
@@ -132,8 +222,7 @@ async function ensurePriceList() {
 
   if (usedCache) {
     await syncStockPrices();
-    loadStocks();
-    computeTotalsFromDB();
+    renderAll();
   } else {
     await refreshPrices(false);
   }
@@ -158,26 +247,25 @@ async function refreshPrices(manual) {
     setPriceStatus(manual ? "更新失敗，可手動輸入股價" : "暫時無法取得最新股價，可手動輸入");
   }
 
-  loadStocks();
-  computeTotalsFromDB();
+  renderAll();
 }
 
-// 用最新 priceList 更新資料庫裡每一筆股票的 currentPrice
+// 用最新 priceList 更新有連結代號的投資帳戶（不寫入變動紀錄）
 function syncStockPrices() {
   return new Promise(resolve => {
     if (!priceList.length) return resolve();
-    const tx = db.transaction("stocks", "readwrite");
-    const store = tx.objectStore("stocks");
+    const tx = db.transaction("accounts", "readwrite");
+    const store = tx.objectStore("accounts");
     const req = store.getAll();
 
     req.onsuccess = () => {
-      req.result.forEach(item => {
-        const match = priceList.find(p => p.code === item.code);
-        if (match) {
-          item.currentPrice = match.price;
-          item.priceUpdatedAt = priceListUpdatedAt;
-          if (!item.name) item.name = match.name;
-          store.put(item);
+      req.result.forEach(acc => {
+        if (acc.category === "invest" && acc.code) {
+          const match = priceList.find(p => p.code === acc.code);
+          if (match) {
+            acc.price = match.price;
+            store.put(acc);
+          }
         }
       });
     };
@@ -186,257 +274,358 @@ function syncStockPrices() {
   });
 }
 
-/* ===== 新增股票表單收合 ===== */
+/* ===== 主畫面：分類展開/收合 + 渲染 ===== */
 
-function toggleAddForm() {
-  const body = document.getElementById("addFormBody");
-  const icon = document.getElementById("addToggleIcon");
-  const isNowCollapsed = body.classList.toggle("collapsed");
-  icon.textContent = isNowCollapsed ? "＋" : "－";
+function toggleCategory(cat) {
+  const list = document.getElementById(cat + "AccountList");
+  const chevron = document.getElementById(cat + "Chevron");
+  const collapsed = list.classList.toggle("collapsed");
+  chevron.classList.toggle("open", !collapsed);
 }
 
-function collapseAddForm() {
-  const body = document.getElementById("addFormBody");
-  const icon = document.getElementById("addToggleIcon");
-  body.classList.add("collapsed");
-  icon.textContent = "＋";
+function renderAll() {
+  if (!db) return;
+  const tx = db.transaction("accounts", "readonly");
+  const req = tx.objectStore("accounts").getAll();
+
+  req.onsuccess = () => {
+    const all = req.result;
+    const byCategory = { cash: [], invest: [], debt: [] };
+    all.forEach(a => { if (byCategory[a.category]) byCategory[a.category].push(a); });
+
+    let cashTotal = 0, investTotal = 0, debtTotal = 0;
+    byCategory.cash.forEach(a => cashTotal += a.qty * a.price);
+    byCategory.invest.forEach(a => investTotal += a.qty * a.price);
+    byCategory.debt.forEach(a => debtTotal += a.qty * a.price);
+
+    document.getElementById("cashCategoryTotal").textContent = fmt(cashTotal);
+    document.getElementById("investCategoryTotal").textContent = fmt(investTotal);
+    document.getElementById("debtCategoryTotal").textContent = fmt(debtTotal);
+    document.getElementById("netWorthDisplay").textContent = fmt(cashTotal + investTotal - debtTotal);
+
+    renderAccountList("cash", byCategory.cash);
+    renderAccountList("invest", byCategory.invest);
+    renderAccountList("debt", byCategory.debt);
+
+    if (currentDetailAccountId != null) {
+      const acc = all.find(a => a.id === currentDetailAccountId);
+      if (acc) renderDetailHeader(acc);
+    }
+  };
 }
 
-/* ===== 自動完成 UI ===== */
+function renderAccountList(category, accounts) {
+  const listEl = document.getElementById(category + "AccountList");
+  if (!accounts.length) {
+    listEl.innerHTML = '<div class="empty-tip">尚無帳戶</div>';
+    return;
+  }
+  listEl.innerHTML = accounts
+    .map(acc => {
+      const balance = acc.qty * acc.price;
+      return `<div class="account-item" onclick="openDetail(${acc.id})">
+        <span>${acc.name}</span>
+        <span>${fmt(balance)}</span>
+      </div>`;
+    })
+    .join("");
+}
 
-const stockNameInput = document.getElementById("stockName");
-const suggestList = document.getElementById("suggestList");
+/* ===== 新增帳戶流程 ===== */
 
-stockNameInput.addEventListener("input", () => {
-  const q = stockNameInput.value.trim();
+function openAddFlow() {
+  addFlowCategory = null;
+  document.getElementById("addStep1").classList.remove("hidden");
+  document.getElementById("addStep2").classList.add("hidden");
+  document.getElementById("addFlowOverlay").classList.remove("hidden");
+}
+
+function closeAddFlow() {
+  document.getElementById("addFlowOverlay").classList.add("hidden");
+  document.getElementById("addAccountCode").value = "";
+  document.getElementById("addAccountName").value = "";
+  document.getElementById("addAccountQty").value = "";
+  document.getElementById("addAccountAmount").value = "";
+  document.getElementById("addSuggestList").innerHTML = "";
+}
+
+function selectAddCategory(cat) {
+  addFlowCategory = cat;
+  document.getElementById("addStep2Title").textContent = categoryLabels[cat];
+  document.getElementById("addStep1").classList.add("hidden");
+  document.getElementById("addStep2").classList.remove("hidden");
+
+  const isInvest = cat === "invest";
+  document.getElementById("addInvestCodeWrap").classList.toggle("hidden", !isInvest);
+  document.getElementById("addAccountQty").classList.toggle("hidden", !isInvest);
+  document.getElementById("addAccountAmount").placeholder = isInvest ? "目前股價（自動帶入，也可手動修改）" : "金額";
+}
+
+function submitAddAccount() {
+  const category = addFlowCategory;
+  const name = document.getElementById("addAccountName").value.trim();
+  let qty = 1;
+  let price = 0;
+  let code = null;
+
+  if (category === "invest") {
+    code = document.getElementById("addAccountCode").value.trim() || null;
+    qty = Number(document.getElementById("addAccountQty").value) || 0;
+    price = Number(document.getElementById("addAccountAmount").value) || 0;
+    if (!name || !qty || !price) {
+      alert("請完整輸入帳戶名稱、股數與股價");
+      return;
+    }
+  } else {
+    price = Number(document.getElementById("addAccountAmount").value) || 0;
+    if (!name) {
+      alert("請輸入帳戶名稱");
+      return;
+    }
+  }
+
+  const acc = { category, code, name, qty, price, createdAt: Date.now() };
+
+  const tx = db.transaction("accounts", "readwrite");
+  const req = tx.objectStore("accounts").add(acc);
+
+  tx.oncomplete = () => {
+    const newId = req.result;
+    recordTransaction(newId, "新建帳戶", "money", qty * price, qty * price, qty);
+    closeAddFlow();
+    renderAll();
+  };
+}
+
+/* ===== 帳戶詳情 ===== */
+
+function openDetail(id) {
+  currentDetailAccountId = id;
+  cancelEditor();
+  const tx = db.transaction("accounts", "readonly");
+  tx.objectStore("accounts").get(id).onsuccess = e => {
+    const acc = e.target.result;
+    if (!acc) return;
+    renderDetailHeader(acc);
+    loadTransactions(id);
+    document.getElementById("detailOverlay").classList.remove("hidden");
+  };
+}
+
+function closeDetail() {
+  document.getElementById("detailOverlay").classList.add("hidden");
+  currentDetailAccountId = null;
+  cancelEditor();
+}
+
+function renderDetailHeader(acc) {
+  const balance = acc.qty * acc.price;
+  document.getElementById("detailName").textContent = acc.name;
+  document.getElementById("detailBalance").textContent = fmt(balance);
+
+  const isInvest = acc.category === "invest";
+  document.getElementById("detailQtyPriceRow").classList.toggle("hidden", !isInvest);
+  if (isInvest) {
+    document.getElementById("detailQtyPriceText").textContent =
+      fmtQty(acc.qty) + " 股 × " + fmt(acc.price) + (acc.code ? "（" + acc.code + "）" : "");
+  }
+  document.getElementById("deltaBtnLabel").textContent = isInvest ? "增減股數" : "增減金額";
+}
+
+function loadTransactions(accountId) {
+  const tx = db.transaction("transactions", "readonly");
+  const idx = tx.objectStore("transactions").index("accountId");
+  const req = idx.getAll(accountId);
+
+  req.onsuccess = () => {
+    const list = (req.result || []).sort((a, b) => b.timestamp - a.timestamp);
+    const html = list
+      .map(t => {
+        const isQty = t.deltaType === "qty";
+        const sign = t.deltaValue >= 0 ? "+" : "";
+        const deltaText = isQty ? sign + fmtQty(t.deltaValue) + " 股" : sign + fmt(t.deltaValue);
+        const dateStr = new Date(t.timestamp).toLocaleString("zh-TW", {
+          year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit"
+        });
+        return `<div class="tx-row">
+          <div class="tx-top">
+            <span>${t.label}</span>
+            <span>${deltaText}</span>
+          </div>
+          <div class="tx-bottom">
+            <span>${dateStr}</span>
+            <span>餘額 ${fmt(t.resultBalance)}</span>
+          </div>
+        </div>`;
+      })
+      .join("");
+    document.getElementById("txList").innerHTML = html || '<div class="empty-tip">尚無紀錄</div>';
+  };
+}
+
+function recordTransaction(accountId, label, deltaType, deltaValue, resultBalance, resultQty) {
+  const tx = db.transaction("transactions", "readwrite");
+  tx.objectStore("transactions").add({
+    accountId, label, deltaType, deltaValue, resultBalance, resultQty, timestamp: Date.now()
+  });
+}
+
+/* ===== 增減金額／股數、修改餘額 ===== */
+
+function showEditor(type) {
+  activeEditor = type;
+  document.getElementById("editorDelta").classList.toggle("hidden", type !== "delta");
+  document.getElementById("editorBalance").classList.toggle("hidden", type !== "balance");
+
+  if (type === "delta") {
+    document.getElementById("deltaInput").value = "";
+    document.getElementById("deltaInput").focus();
+  } else if (type === "balance") {
+    document.getElementById("balanceInput").value = "";
+    document.getElementById("balanceInput").focus();
+  }
+}
+
+function cancelEditor() {
+  activeEditor = null;
+  document.getElementById("editorDelta").classList.add("hidden");
+  document.getElementById("editorBalance").classList.add("hidden");
+}
+
+function confirmDelta() {
+  const id = currentDetailAccountId;
+  const rawStr = document.getElementById("deltaInput").value;
+  if (rawStr === "") { cancelEditor(); return; }
+  const raw = Number(rawStr);
+
+  const tx = db.transaction("accounts", "readwrite");
+  const store = tx.objectStore("accounts");
+
+  store.get(id).onsuccess = e => {
+    const acc = e.target.result;
+    if (!acc) return;
+    const isInvest = acc.category === "invest";
+    let label, deltaType;
+
+    if (isInvest) {
+      acc.qty = (acc.qty || 0) + raw;
+      label = "增減股數";
+      deltaType = "qty";
+    } else {
+      acc.price = (acc.price || 0) + raw;
+      label = "增減金額";
+      deltaType = "money";
+    }
+    store.put(acc);
+
+    tx.oncomplete = () => {
+      recordTransaction(id, label, deltaType, raw, acc.qty * acc.price, acc.qty);
+      cancelEditor();
+      openDetail(id);
+      renderAll();
+    };
+  };
+}
+
+function confirmBalance() {
+  const id = currentDetailAccountId;
+  const rawStr = document.getElementById("balanceInput").value;
+  if (rawStr === "") { cancelEditor(); return; }
+  const newBalance = Number(rawStr);
+
+  const tx = db.transaction("accounts", "readwrite");
+  const store = tx.objectStore("accounts");
+
+  store.get(id).onsuccess = e => {
+    const acc = e.target.result;
+    if (!acc) return;
+    const oldBalance = acc.qty * acc.price;
+
+    if (acc.category === "invest" && acc.code && acc.price > 0) {
+      // 有連結股價：股價維持市價，反推股數
+      acc.qty = newBalance / acc.price;
+    } else {
+      // 現金 / 負債 / 自訂投資：股數不變，直接調整金額
+      const qty = acc.qty || 1;
+      acc.price = newBalance / qty;
+      if (!acc.qty) acc.qty = 1;
+    }
+    store.put(acc);
+
+    tx.oncomplete = () => {
+      recordTransaction(id, "修改餘額", "money", newBalance - oldBalance, newBalance, acc.qty);
+      cancelEditor();
+      openDetail(id);
+      renderAll();
+    };
+  };
+}
+
+function deleteAccount() {
+  const id = currentDetailAccountId;
+  if (!confirm("確定要刪除這個帳戶嗎？相關紀錄也會一併刪除")) return;
+
+  const tx = db.transaction(["accounts", "transactions"], "readwrite");
+  tx.objectStore("accounts").delete(id);
+
+  const idx = tx.objectStore("transactions").index("accountId");
+  idx.openCursor(IDBKeyRange.only(id)).onsuccess = e => {
+    const cursor = e.target.result;
+    if (cursor) {
+      cursor.delete();
+      cursor.continue();
+    }
+  };
+
+  tx.oncomplete = () => {
+    closeDetail();
+    renderAll();
+  };
+}
+
+/* ===== 新增帳戶：股票自動完成 ===== */
+
+const addAccountCodeInput = document.getElementById("addAccountCode");
+const addSuggestList = document.getElementById("addSuggestList");
+
+addAccountCodeInput.addEventListener("input", () => {
+  const q = addAccountCodeInput.value.trim();
   if (!q) {
-    suggestList.innerHTML = "";
-    suggestList.style.display = "none";
+    addSuggestList.innerHTML = "";
+    addSuggestList.style.display = "none";
     return;
   }
 
-  const matches = priceList
-    .filter(p => p.code.startsWith(q) || p.name.includes(q))
-    .slice(0, 8);
-
+  const matches = priceList.filter(p => p.code.startsWith(q) || p.name.includes(q)).slice(0, 8);
   if (!matches.length) {
-    suggestList.innerHTML = "";
-    suggestList.style.display = "none";
+    addSuggestList.innerHTML = "";
+    addSuggestList.style.display = "none";
     return;
   }
 
-  suggestList.innerHTML = matches
+  addSuggestList.innerHTML = matches
     .map(
-      m => `<div class="suggest-item" data-code="${m.code}" data-price="${m.price}">
+      m => `<div class="suggest-item" data-code="${m.code}" data-name="${m.name}" data-price="${m.price}">
               <span>${m.code} ${m.name}</span>
               <span class="suggest-price">${m.price}</span>
             </div>`
     )
     .join("");
-  suggestList.style.display = "block";
+  addSuggestList.style.display = "block";
 });
 
-suggestList.addEventListener("click", e => {
+addSuggestList.addEventListener("click", e => {
   const item = e.target.closest(".suggest-item");
   if (!item) return;
-  stockNameInput.value = item.dataset.code;
-  document.getElementById("stockPrice").value = item.dataset.price;
-  suggestList.innerHTML = "";
-  suggestList.style.display = "none";
-  updateEstValue();
+  addAccountCodeInput.value = item.dataset.code;
+  document.getElementById("addAccountName").value = item.dataset.name;
+  document.getElementById("addAccountAmount").value = item.dataset.price;
+  addSuggestList.innerHTML = "";
+  addSuggestList.style.display = "none";
 });
 
 document.addEventListener("click", e => {
   if (!e.target.closest(".autocomplete-wrap")) {
-    suggestList.style.display = "none";
+    addSuggestList.style.display = "none";
   }
 });
-
-/* ===== 預估市值（股數 x 目前股價） ===== */
-
-function updateEstValue() {
-  const qty = Number(document.getElementById("stockQty").value) || 0;
-  const price = Number(document.getElementById("stockPrice").value) || 0;
-  document.getElementById("estValue").textContent = fmt(qty * price);
-}
-
-document.getElementById("stockQty").addEventListener("input", updateEstValue);
-document.getElementById("stockPrice").addEventListener("input", updateEstValue);
-
-/* ===== 現金（直接在資產總覽卡片修改） ===== */
-
-function loadCash() {
-  const tx = db.transaction("store", "readonly");
-  const req = tx.objectStore("store").get("cash");
-  req.onsuccess = () => {
-    currentCash = Number(req.result) || 0;
-    document.getElementById("totalCash").textContent = fmt(currentCash);
-  };
-}
-
-function saveCash(value) {
-  const tx = db.transaction("store", "readwrite");
-  tx.objectStore("store").put(value, "cash");
-  tx.oncomplete = () => {
-    currentCash = value;
-    document.getElementById("totalCash").textContent = fmt(currentCash);
-    computeTotalsFromDB();
-  };
-}
-
-function toggleCashEdit() {
-  const span = document.getElementById("totalCash");
-  const input = document.getElementById("cashEditInput");
-  const btn = document.getElementById("cashEditBtn");
-
-  if (!cashEditing) {
-    input.value = currentCash;
-    span.style.display = "none";
-    input.style.display = "inline-block";
-    btn.textContent = "儲存";
-    cashEditing = true;
-    input.focus();
-    input.select();
-  } else {
-    const value = Number(input.value) || 0;
-    span.style.display = "inline";
-    input.style.display = "none";
-    btn.textContent = "修改";
-    cashEditing = false;
-    saveCash(value);
-  }
-}
-
-document.getElementById("cashEditInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") toggleCashEdit();
-});
-
-/* ===== 股票 ===== */
-
-function addStock() {
-  const code = stockNameInput.value.trim();
-  const qty = Number(document.getElementById("stockQty").value);
-  const cost = Number(document.getElementById("stockCost").value) || 0;
-  const priceInput = document.getElementById("stockPrice").value;
-
-  if (!code || !qty) {
-    alert("請輸入股票代號與股數");
-    return;
-  }
-
-  const match = priceList.find(p => p.code === code);
-  const name = match ? match.name : code;
-  const price = priceInput !== "" ? Number(priceInput) : (match ? match.price : cost);
-
-  const stock = {
-    code,
-    name,
-    qty,
-    cost,
-    currentPrice: price,
-    priceUpdatedAt: priceListUpdatedAt
-  };
-
-  const tx = db.transaction("stocks", "readwrite");
-  tx.objectStore("stocks").add(stock);
-
-  tx.oncomplete = () => {
-    stockNameInput.value = "";
-    document.getElementById("stockQty").value = "";
-    document.getElementById("stockCost").value = "";
-    document.getElementById("stockPrice").value = "";
-    updateEstValue();
-    collapseAddForm();
-    loadStocks();
-    computeTotalsFromDB();
-  };
-
-  tx.onerror = (e) => {
-    console.error("新增股票失敗", e);
-    alert("新增失敗，請重試");
-  };
-}
-
-function deleteStock(id) {
-  const tx = db.transaction("stocks", "readwrite");
-  tx.objectStore("stocks").delete(id);
-  tx.oncomplete = () => {
-    loadStocks();
-    computeTotalsFromDB();
-  };
-}
-
-function loadStocks() {
-  const tx = db.transaction("stocks", "readonly");
-  const req = tx.objectStore("stocks").getAll();
-
-  req.onsuccess = () => {
-    const list = req.result;
-    let html = "";
-
-    list.forEach(s => {
-      const price = s.currentPrice != null ? s.currentPrice : s.cost;
-      const value = s.qty * price;
-      const costValue = s.qty * (s.cost || 0);
-      const pl = value - costValue;
-      const plClass = pl > 0 ? "pl-pos" : pl < 0 ? "pl-neg" : "";
-      const plSign = pl > 0 ? "+" : "";
-
-      html += `
-        <div class="stock-row-compact">
-          <div class="stock-name"><b>${s.code}</b><small>${s.name || ""}</small></div>
-          <div>${s.qty}</div>
-          <div class="${plClass}">${plSign}${fmt(pl)}</div>
-          <button class="del-btn-sm" onclick="deleteStock(${s.id})">×</button>
-        </div>`;
-    });
-
-    document.getElementById("stockList").innerHTML = html || '<div class="empty-tip">尚未新增股票</div>';
-  };
-}
-
-/* ===== 資產總額 / 總損益 / 總報酬率 ===== */
-
-function computeTotalsFromDB() {
-  const tx = db.transaction("stocks", "readonly");
-  const req = tx.objectStore("stocks").getAll();
-
-  req.onsuccess = () => {
-    let stocksTotal = 0;
-    let costTotal = 0;
-
-    req.result.forEach(s => {
-      const price = s.currentPrice != null ? s.currentPrice : s.cost;
-      stocksTotal += s.qty * price;
-      costTotal += s.qty * (s.cost || 0);
-    });
-
-    const plTotal = stocksTotal - costTotal;
-
-    updateTotalCard(stocksTotal);
-    updatePLSummary(plTotal, costTotal);
-  };
-}
-
-function updateTotalCard(stocksTotal) {
-  document.getElementById("totalStocks").textContent = fmt(stocksTotal);
-  document.getElementById("totalDisplay").textContent = fmt(currentCash + stocksTotal);
-}
-
-function updatePLSummary(plTotal, costTotal) {
-  const plEl = document.getElementById("totalPL");
-  const rateEl = document.getElementById("totalReturnRate");
-  const plClass = plTotal > 0 ? "pl-pos" : plTotal < 0 ? "pl-neg" : "";
-
-  plEl.textContent = (plTotal > 0 ? "+" : "") + fmt(plTotal);
-  plEl.className = plClass;
-
-  if (costTotal > 0) {
-    const rate = (plTotal / costTotal) * 100;
-    rateEl.textContent = (rate > 0 ? "+" : "") + rate.toFixed(2) + "%";
-    rateEl.className = plClass;
-  } else {
-    rateEl.textContent = "-";
-    rateEl.className = "";
-  }
-}

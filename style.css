@@ -11,7 +11,6 @@ body {
   padding: 16px;
 }
 
-/* 標題 */
 h2 {
   text-align: center;
   margin: 10px 0 20px;
@@ -57,7 +56,6 @@ button:active {
   opacity: 0.8;
 }
 
-/* 資料顯示 */
 .row {
   display: flex;
   justify-content: space-between;
@@ -70,19 +68,21 @@ button:active {
   border-bottom: none;
 }
 
-/* 現金 row 裡的 input 不需要滿版樣式 */
-.price-row input {
-  width: 110px;
-  margin: 0;
-  padding: 8px;
-  text-align: right;
+/* 共用：隱藏 */
+.hidden {
+  display: none !important;
 }
 
-/* ===== 資產總額卡片 ===== */
+/* ===== 我的淨資產卡片 ===== */
 .total-card {
   background: linear-gradient(135deg, #007aff, #5856d6);
   color: white;
-  text-align: center;
+}
+
+.total-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .total-label {
@@ -93,62 +93,102 @@ button:active {
 .total-value {
   font-size: 32px;
   font-weight: 700;
-  margin: 6px 0 10px;
+  margin-top: 4px;
 }
 
-.total-sub {
+.fab-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  font-size: 26px;
+  font-weight: 600;
+  margin-top: 0;
+  padding: 0;
+  line-height: 48px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ===== 分類列表（流動資金 / 投資 / 負債） ===== */
+.categories-card {
+  padding: 4px 12px;
+}
+
+.category-block {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.category-block:last-child {
+  border-bottom: none;
+}
+
+.category-row {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  opacity: 0.95;
-}
-
-.total-sub-item {
-  display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.cash-input {
-  width: 80px;
-  margin: 0;
-  padding: 4px 6px;
-  font-size: 13px;
-  border-radius: 6px;
-  border: none;
-  color: #222;
-}
-
-.cash-edit-btn {
-  width: auto;
-  margin: 0;
-  padding: 3px 9px;
-  font-size: 11px;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.22);
-  color: white;
-  border-radius: 6px;
-}
-
-/* ===== 可收合的區塊標題 ===== */
-.toggle-header {
+  padding: 14px 0;
   cursor: pointer;
-  user-select: none;
 }
 
-.toggle-icon {
-  font-size: 18px;
-  font-weight: 700;
-  color: #007aff;
-  width: auto;
+.category-name {
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.add-form-body {
-  margin-top: 8px;
+.chev {
+  display: inline-block;
+  font-size: 12px;
+  color: #bbb;
+  transition: transform 0.15s;
+  margin-left: 2px;
 }
 
-.add-form-body.collapsed {
+.chev.open {
+  transform: rotate(180deg);
+}
+
+.category-amount {
+  font-size: 16px;
+  color: #333;
+}
+
+.account-list {
+  padding-bottom: 8px;
+}
+
+.account-list.collapsed {
   display: none;
+}
+
+.account-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 8px;
+  margin: 2px 0;
+  border-radius: 8px;
+  background: #f7f8fa;
+  font-size: 14px;
+}
+
+.account-item:active {
+  background: #eef0f3;
+}
+
+.empty-tip {
+  text-align: center;
+  color: #999;
+  padding: 12px 0;
+  font-size: 13px;
+}
+
+/* ===== 股價更新狀態文字 ===== */
+.price-status {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  margin-top: 6px;
 }
 
 /* ===== 自動完成下拉選單 ===== */
@@ -193,108 +233,151 @@ button:active {
   font-weight: 600;
 }
 
-/* ===== 股價更新狀態文字 ===== */
-.price-status {
-  font-size: 12px;
-  color: #999;
-  text-align: center;
-  margin-top: 6px;
-}
-
-/* ===== 股票清單 ===== */
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.ghost-btn {
-  width: auto;
-  margin-top: 0;
-  padding: 6px 12px;
-  font-size: 13px;
+/* ===== 全螢幕覆蓋層（新增帳戶 / 帳戶詳情） ===== */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: white;
-  color: #007aff;
-  border: 1px solid #007aff;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
 }
 
-/* 表格欄位標題 */
-.stock-table-header {
-  display: grid;
-  grid-template-columns: 2fr 0.8fr 1.3fr 28px;
-  gap: 6px;
-  padding: 10px 0 4px;
-  font-size: 12px;
-  color: #999;
+.overlay.hidden {
+  display: none;
+}
+
+.overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
   font-weight: 600;
 }
 
-/* 每一筆股票（股名 / 股數 / 總損益 / 刪除） */
-.stock-row-compact {
-  display: grid;
-  grid-template-columns: 2fr 0.8fr 1.3fr 28px;
-  gap: 6px;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
-  font-size: 14px;
+.header-spacer {
+  width: 40px;
 }
 
-.stock-row-compact:last-of-type {
+.back-btn {
+  width: auto;
+  background: none;
+  color: #007aff;
+  font-size: 16px;
+  padding: 4px 0;
+  margin: 0;
+  font-weight: 500;
+}
+
+.back-btn.danger {
+  color: #ff3b30;
+}
+
+.overlay-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+  max-width: 420px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.overlay-hint {
+  color: #999;
+  font-size: 13px;
+  margin: 4px 0 10px;
+}
+
+/* ===== 帳戶詳情 ===== */
+.detail-header {
+  text-align: center;
+  padding: 12px 0 8px;
+}
+
+.detail-name {
+  font-size: 16px;
+  color: #666;
+}
+
+.detail-balance {
+  font-size: 34px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.detail-qty-price {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #999;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.secondary-btn {
+  background: #eef3ff;
+  color: #007aff;
+  font-weight: 600;
+  margin-top: 0;
+}
+
+.inline-editor {
+  background: #f7f8fa;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.editor-btn-row {
+  display: flex;
+  gap: 10px;
+}
+
+.editor-btn-row button {
+  margin-top: 0;
+}
+
+.editor-btn-row .ghost-btn {
+  background: white;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.tx-title {
+  font-size: 14px;
+  color: #999;
+  margin: 18px 0 6px;
+}
+
+.tx-row {
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tx-row:last-child {
   border-bottom: none;
 }
 
-.stock-name {
+.tx-top {
   display: flex;
-  flex-direction: column;
-  line-height: 1.3;
-  overflow: hidden;
-}
-
-.stock-name b {
+  justify-content: space-between;
   font-size: 14px;
-}
-
-.stock-name small {
-  color: #999;
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.del-btn-sm {
-  width: 28px;
-  height: 28px;
-  margin: 0;
-  padding: 0;
-  font-size: 16px;
-  line-height: 28px;
-  background: #fff0f0;
-  color: #ff3b30;
-  border-radius: 8px;
-}
-
-.empty-tip {
-  text-align: center;
-  color: #999;
-  padding: 16px 0;
-  font-size: 14px;
-}
-
-.stock-summary {
-  margin-top: 4px;
-  border-top: 2px solid #f0f0f0;
-  padding-top: 4px;
-}
-
-/* 損益顏色（台股習慣：紅漲綠跌） */
-.pl-pos {
-  color: #ff3b30;
   font-weight: 600;
 }
 
-.pl-neg {
-  color: #34c759;
-  font-weight: 600;
+.tx-bottom {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
 }

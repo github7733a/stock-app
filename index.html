@@ -2,21 +2,33 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>My Asset App</title>
+  <title>Stock App</title>
   <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 </head>
 <body>
 
-  <h2>資產管理</h2>
+<h2>股票資產管理</h2>
 
-  <div>
-    <input id="cashInput" type="number" placeholder="輸入現金">
-    <button onclick="saveCash()">儲存</button>
-  </div>
+<!-- 現金 -->
+<h3>現金</h3>
+<input id="cashInput" type="number" placeholder="輸入現金">
+<button onclick="saveCash()">儲存現金</button>
+<div>現金：<span id="cashDisplay">0</span></div>
 
-  <h3>目前現金：</h3>
-  <div id="cashDisplay">0</div>
+<hr>
 
-  <script src="app.js"></script>
+<!-- 股票 -->
+<h3>新增股票</h3>
+
+<input id="stockName" placeholder="股票代號 (ex 2330)">
+<input id="stockQty" type="number" placeholder="股數">
+<input id="stockCost" type="number" placeholder="成本價">
+<button onclick="addStock()">新增</button>
+
+<h3>股票清單</h3>
+<div id="stockList"></div>
+
+<script src="app.js"></script>
 </body>
 </html>

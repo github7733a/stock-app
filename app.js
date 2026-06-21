@@ -1,22 +1,22 @@
 /* =========================================================
    股票資產管理 app.js
-   新增功能：
+   功能：
    1. 台股代號/名稱自動完成 + 自動帶入最新收盤價
       （資料來源：證交所 TWSE OpenAPI + 櫃買中心 TPEx OpenAPI，
        皆為「每日收盤後」更新一次，非即時報價。
        實際呼叫是透過 /api/prices 這支 Cloudflare Pages Function
        在伺服器端代抓，避免瀏覽器直接呼叫被 CORS 擋掉）
-   2. 依股數自動計算市值
-   3. 資產總額（現金 + 股票市值）
-
-   注意：原本的 db.createObjectStore("stocks") 沒有指定
-   keyPath / autoIncrement，會導致 add() 直接丟出例外，
-   股票永遠新增不進去。這裡把 DB 版本升級到 2 並修正。
+   2. 依股數自動計算市值 / 損益
+   3. 資產總額（現金 + 股票市值），現金可直接在總覽卡片修改
+   4. 新增股票表單預設收合，新增成功後自動收起來
+   5. 股票清單精簡為「股名 / 股數 / 總損益」，底部顯示總損益與總報酬率
    ========================================================= */
 
 let db;
-let priceList = [];          // [{code, name, price, market}]
+let priceList = [];          // [{code, name, price}]
 let priceListUpdatedAt = null;
+let currentCash = 0;
+let cashEditing = false;
 
 const request = indexedDB.open("assetDB", 2);
 
@@ -64,7 +64,6 @@ function setPriceStatus(text) {
 
 /* ===== 股價清單（自動完成 + 帶入價格用） ===== */
 
-// 不同來源欄位名稱可能不完全一致，這裡用模糊比對找出代號/名稱/收盤價欄位
 function normalizeItem(item) {
   if (!item || typeof item !== "object") return null;
   const keys = Object.keys(item);
@@ -187,6 +186,22 @@ function syncStockPrices() {
   });
 }
 
+/* ===== 新增股票表單收合 ===== */
+
+function toggleAddForm() {
+  const body = document.getElementById("addFormBody");
+  const icon = document.getElementById("addToggleIcon");
+  const isNowCollapsed = body.classList.toggle("collapsed");
+  icon.textContent = isNowCollapsed ? "＋" : "－";
+}
+
+function collapseAddForm() {
+  const body = document.getElementById("addFormBody");
+  const icon = document.getElementById("addToggleIcon");
+  body.classList.add("collapsed");
+  icon.textContent = "＋";
+}
+
 /* ===== 自動完成 UI ===== */
 
 const stockNameInput = document.getElementById("stockName");
@@ -248,28 +263,53 @@ function updateEstValue() {
 document.getElementById("stockQty").addEventListener("input", updateEstValue);
 document.getElementById("stockPrice").addEventListener("input", updateEstValue);
 
-/* ===== 現金 ===== */
-
-function saveCash() {
-  const value = Number(document.getElementById("cashInput").value) || 0;
-
-  const tx = db.transaction("store", "readwrite");
-  tx.objectStore("store").put(value, "cash");
-
-  tx.oncomplete = () => {
-    loadCash();
-    computeTotalsFromDB();
-  };
-}
+/* ===== 現金（直接在資產總覽卡片修改） ===== */
 
 function loadCash() {
   const tx = db.transaction("store", "readonly");
   const req = tx.objectStore("store").get("cash");
-
   req.onsuccess = () => {
-    document.getElementById("cashDisplay").textContent = fmt(req.result || 0);
+    currentCash = Number(req.result) || 0;
+    document.getElementById("totalCash").textContent = fmt(currentCash);
   };
 }
+
+function saveCash(value) {
+  const tx = db.transaction("store", "readwrite");
+  tx.objectStore("store").put(value, "cash");
+  tx.oncomplete = () => {
+    currentCash = value;
+    document.getElementById("totalCash").textContent = fmt(currentCash);
+    computeTotalsFromDB();
+  };
+}
+
+function toggleCashEdit() {
+  const span = document.getElementById("totalCash");
+  const input = document.getElementById("cashEditInput");
+  const btn = document.getElementById("cashEditBtn");
+
+  if (!cashEditing) {
+    input.value = currentCash;
+    span.style.display = "none";
+    input.style.display = "inline-block";
+    btn.textContent = "儲存";
+    cashEditing = true;
+    input.focus();
+    input.select();
+  } else {
+    const value = Number(input.value) || 0;
+    span.style.display = "inline";
+    input.style.display = "none";
+    btn.textContent = "修改";
+    cashEditing = false;
+    saveCash(value);
+  }
+}
+
+document.getElementById("cashEditInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") toggleCashEdit();
+});
 
 /* ===== 股票 ===== */
 
@@ -306,6 +346,7 @@ function addStock() {
     document.getElementById("stockCost").value = "";
     document.getElementById("stockPrice").value = "";
     updateEstValue();
+    collapseAddForm();
     loadStocks();
     computeTotalsFromDB();
   };
@@ -342,15 +383,11 @@ function loadStocks() {
       const plSign = pl > 0 ? "+" : "";
 
       html += `
-        <div class="stock-row">
-          <div class="stock-row-top">
-            <div class="stock-id"><b>${s.code}</b> ${s.name || ""}</div>
-            <button class="del-btn" onclick="deleteStock(${s.id})">刪除</button>
-          </div>
-          <div class="row"><span>股數</span><span>${s.qty}</span></div>
-          <div class="row"><span>成本價 / 現價</span><span>${s.cost || 0} / ${price}</span></div>
-          <div class="row"><span>市值</span><span>${fmt(value)}</span></div>
-          <div class="row"><span>損益</span><span class="${plClass}">${plSign}${fmt(pl)}</span></div>
+        <div class="stock-row-compact">
+          <div class="stock-name"><b>${s.code}</b><small>${s.name || ""}</small></div>
+          <div>${s.qty}</div>
+          <div class="${plClass}">${plSign}${fmt(pl)}</div>
+          <button class="del-btn-sm" onclick="deleteStock(${s.id})">×</button>
         </div>`;
     });
 
@@ -358,7 +395,7 @@ function loadStocks() {
   };
 }
 
-/* ===== 資產總額 ===== */
+/* ===== 資產總額 / 總損益 / 總報酬率 ===== */
 
 function computeTotalsFromDB() {
   const tx = db.transaction("stocks", "readonly");
@@ -366,22 +403,40 @@ function computeTotalsFromDB() {
 
   req.onsuccess = () => {
     let stocksTotal = 0;
+    let costTotal = 0;
+
     req.result.forEach(s => {
       const price = s.currentPrice != null ? s.currentPrice : s.cost;
       stocksTotal += s.qty * price;
+      costTotal += s.qty * (s.cost || 0);
     });
+
+    const plTotal = stocksTotal - costTotal;
+
     updateTotalCard(stocksTotal);
+    updatePLSummary(plTotal, costTotal);
   };
 }
 
 function updateTotalCard(stocksTotal) {
-  const tx = db.transaction("store", "readonly");
-  const req = tx.objectStore("store").get("cash");
+  document.getElementById("totalStocks").textContent = fmt(stocksTotal);
+  document.getElementById("totalDisplay").textContent = fmt(currentCash + stocksTotal);
+}
 
-  req.onsuccess = () => {
-    const cash = Number(req.result) || 0;
-    document.getElementById("totalCash").textContent = fmt(cash);
-    document.getElementById("totalStocks").textContent = fmt(stocksTotal);
-    document.getElementById("totalDisplay").textContent = fmt(cash + stocksTotal);
-  };
+function updatePLSummary(plTotal, costTotal) {
+  const plEl = document.getElementById("totalPL");
+  const rateEl = document.getElementById("totalReturnRate");
+  const plClass = plTotal > 0 ? "pl-pos" : plTotal < 0 ? "pl-neg" : "";
+
+  plEl.textContent = (plTotal > 0 ? "+" : "") + fmt(plTotal);
+  plEl.className = plClass;
+
+  if (costTotal > 0) {
+    const rate = (plTotal / costTotal) * 100;
+    rateEl.textContent = (rate > 0 ? "+" : "") + rate.toFixed(2) + "%";
+    rateEl.className = plClass;
+  } else {
+    rateEl.textContent = "-";
+    rateEl.className = "";
+  }
 }

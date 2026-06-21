@@ -11,44 +11,49 @@
 
   <h2>股票資產管理</h2>
 
-  <!-- 資產總額 -->
+  <!-- 資產總額（現金可直接在這裡修改） -->
   <div class="card total-card">
     <div class="total-label">資產總額</div>
     <div class="total-value" id="totalDisplay">NT$ 0</div>
     <div class="total-sub">
-      <span>現金 <b id="totalCash">NT$ 0</b></span>
-      <span>股票市值 <b id="totalStocks">NT$ 0</b></span>
+      <div class="total-sub-item">
+        <span>現金</span>
+        <b id="totalCash">NT$ 0</b>
+        <input id="cashEditInput" type="number" class="cash-input" style="display:none">
+        <button id="cashEditBtn" class="cash-edit-btn" onclick="toggleCashEdit()">修改</button>
+      </div>
+      <div class="total-sub-item">
+        <span>股票市值</span>
+        <b id="totalStocks">NT$ 0</b>
+      </div>
     </div>
   </div>
 
-  <!-- 現金 -->
+  <!-- 新增股票（預設收合，填完自動收起來） -->
   <div class="card">
-    <h3>現金</h3>
-    <input id="cashInput" type="number" placeholder="輸入現金">
-    <button onclick="saveCash()">儲存現金</button>
-    <div class="row"><span>目前現金</span><span id="cashDisplay">NT$ 0</span></div>
-  </div>
-
-  <!-- 新增股票 -->
-  <div class="card">
-    <h3>新增股票</h3>
-
-    <div class="autocomplete-wrap">
-      <input id="stockName" placeholder="輸入股票代號或名稱 (ex 2330 / 台積電)" autocomplete="off">
-      <div id="suggestList" class="suggest-list"></div>
+    <div class="list-header toggle-header" onclick="toggleAddForm()">
+      <h3>新增股票</h3>
+      <span id="addToggleIcon" class="toggle-icon">＋</span>
     </div>
 
-    <input id="stockQty" type="number" placeholder="股數">
-    <input id="stockCost" type="number" placeholder="成本價 (每股，選填)">
+    <div id="addFormBody" class="add-form-body collapsed">
+      <div class="autocomplete-wrap">
+        <input id="stockName" placeholder="輸入股票代號或名稱 (ex 2330 / 台積電)" autocomplete="off">
+        <div id="suggestList" class="suggest-list"></div>
+      </div>
 
-    <div class="row price-row">
-      <span>目前股價</span>
-      <input id="stockPrice" type="number" placeholder="自動帶入，也可手動修改">
+      <input id="stockQty" type="number" placeholder="股數">
+      <input id="stockCost" type="number" placeholder="成本價 (每股，選填)">
+
+      <div class="row price-row">
+        <span>目前股價</span>
+        <input id="stockPrice" type="number" placeholder="自動帶入，也可手動修改">
+      </div>
+      <div class="row"><span>預估市值</span><span id="estValue">NT$ 0</span></div>
+
+      <button onclick="addStock()">新增</button>
+      <div id="priceStatus" class="price-status"></div>
     </div>
-    <div class="row"><span>預估市值</span><span id="estValue">NT$ 0</span></div>
-
-    <button onclick="addStock()">新增</button>
-    <div id="priceStatus" class="price-status"></div>
   </div>
 
   <!-- 股票清單 -->
@@ -57,7 +62,16 @@
       <h3>股票清單</h3>
       <button class="ghost-btn" onclick="refreshPrices(true)">更新股價</button>
     </div>
+
+    <div class="stock-table-header">
+      <span>股名</span><span>股數</span><span>總損益</span><span></span>
+    </div>
     <div id="stockList"></div>
+
+    <div class="stock-summary">
+      <div class="row"><span>總預估損益</span><span id="totalPL">NT$ 0</span></div>
+      <div class="row"><span>總報酬率</span><span id="totalReturnRate">-</span></div>
+    </div>
   </div>
 
 </div>

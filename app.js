@@ -76,14 +76,47 @@ const idb = {
 
 const $ = id => document.getElementById(id);
 
-function fmtK(n) {                            // 完整數字（不縮寫）
+// ── 格式化函式 ──────────────────────────────────────────────
+// fmtPrice : 單價 / 均價 / 市價 → 兩位小數，無 NT$
+// fmtAmount: 計算金額 (成本/現值) → 整數，無 NT$
+// fmtPL    : 損益 → 整數，無 NT$，正數不顯示 +
+// fmtQty   : 股數 → 千分位整數（顯示用）
+// parseQty : 把可能含逗號的輸入解析成數字
+function fmtPrice(n) {
   const v = Number(n) || 0;
-  return Math.round(v).toLocaleString("zh-TW");
+  return v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function fmtFull(n) {                         // 帶 NT$ 完整金額
+function fmtAmount(n) {
   const v = Number(n) || 0;
-  return "NT$ " + Math.round(Math.abs(v)).toLocaleString("zh-TW");
+  return Math.round(Math.abs(v)).toLocaleString("zh-TW");
+}
+
+function fmtPL(n) {
+  const v = Number(n) || 0;
+  return Math.round(v).toLocaleString("zh-TW");   // 負數自帶 -，正數不加 +
+}
+
+function fmtQty(n) {
+  return Number(n).toLocaleString("zh-TW");
+}
+
+function parseQty(str) {
+  return Number(String(str).replace(/,/g, "")) || 0;
+}
+
+// 幫任何 qty input 加上離焦千分位格式化
+function bindQtyFormat(inputEl) {
+  if (!inputEl || inputEl.dataset.qtyBound) return;
+  inputEl.dataset.qtyBound = "1";
+  inputEl.addEventListener("blur", () => {
+    const v = parseQty(inputEl.value);
+    if (v > 0) inputEl.value = v.toLocaleString("zh-TW");
+  });
+  inputEl.addEventListener("focus", () => {
+    // 聚焦時去掉逗號，方便編輯
+    inputEl.value = String(parseQty(inputEl.value) || "");
+  });
 }
 
 function fmtRate(r) {
@@ -228,7 +261,6 @@ async function renderMain() {
     stocks.forEach(s => {
       const cv   = s.qty * s.price;
       const pl   = cv - s.totalCost;
-      const sign = pl >= 0 ? "+" : "";
       totalValue   += cv;
       totalCostSum += s.totalCost;
 
@@ -240,8 +272,8 @@ async function renderMain() {
               <span class="s-name">${s.name || s.code}</span>
               <span class="s-code">${s.code}</span>
             </div>
-            <span class="col-r">${s.qty}</span>
-            <span class="col-r ${pc(pl)}">${sign}${fmtK(pl)}</span>
+            <span class="col-r">${fmtQty(s.qty)}</span>
+            <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
             <span class="col-chev ${isOpen ? "open" : ""}">›</span>
           </div>
           <div class="detail-panel ${isOpen ? "" : "hidden"}" id="panel-${s.id}">
@@ -254,12 +286,12 @@ async function renderMain() {
     const pl   = totalValue - totalCostSum;
     const rate = totalCostSum > 0 ? (pl / totalCostSum) * 100 : NaN;
     const cls  = pc(pl);
-    $("totalPL").textContent    = (pl >= 0 ? "+" : "") + fmtK(pl);
+    $("totalPL").textContent    = fmtPL(pl);
     $("totalPL").className      = "sum-val " + cls;
     $("totalRate").textContent  = fmtRate(rate);
     $("totalRate").className    = "sum-val " + cls;
-    $("totalValue").textContent = fmtK(totalValue);
-    $("totalCost").textContent  = fmtK(totalCostSum);
+    $("totalValue").textContent = fmtAmount(totalValue);
+    $("totalCost").textContent  = fmtAmount(totalCostSum);
   }
 
   $("stockRows").innerHTML = html;
@@ -276,29 +308,28 @@ function buildDetailHTML(s) {
   const avg  = s.qty > 0 ? s.totalCost / s.qty : 0;
   const rate = s.totalCost > 0 ? (pl / s.totalCost) * 100 : NaN;
   const cls  = pc(pl);
-  const sign = pl >= 0 ? "+" : "";
 
   return `
     <div class="metrics-grid">
       <div class="metric">
         <div class="m-label">成交均價</div>
-        <div class="m-val">${fmtFull(avg)}</div>
+        <div class="m-val">${fmtPrice(avg)}</div>
       </div>
       <div class="metric">
         <div class="m-label">現值</div>
-        <div class="m-val">${fmtFull(cv)}</div>
+        <div class="m-val">${fmtAmount(cv)}</div>
       </div>
       <div class="metric">
         <div class="m-label">市價</div>
-        <div class="m-val">${fmtFull(s.price)}</div>
+        <div class="m-val">${fmtPrice(s.price)}</div>
       </div>
       <div class="metric">
         <div class="m-label">預估損益</div>
-        <div class="m-val ${cls}">${sign}${fmtFull(pl)}</div>
+        <div class="m-val ${cls}">${fmtPL(pl)}</div>
       </div>
       <div class="metric">
         <div class="m-label">付出成本</div>
-        <div class="m-val">${fmtFull(s.totalCost)}</div>
+        <div class="m-val">${fmtAmount(s.totalCost)}</div>
       </div>
       <div class="metric">
         <div class="m-label">報酬率</div>
@@ -332,7 +363,7 @@ async function loadTxIntoPanel(stockId) {
       <div class="tx-main">
         <span class="tx-type ${qCls}">${typeLabel[t.type] || t.type}</span>
         <span class="tx-qty ${qCls}">${qSign}${t.qty} 股</span>
-        <span class="tx-amt">${fmtFull(t.amount)}</span>
+        <span class="tx-amt">${fmtAmount(t.amount)}</span>
         <span class="tx-actions">
           <button class="tx-edit-btn" onclick="editTx(${t.id},${stockId})">修改</button>
           <button class="tx-del-btn"  onclick="deleteTx(${t.id},${stockId})">刪除</button>
@@ -387,7 +418,7 @@ async function editTx(txId, stockId) {
 
   const typeLabel = { init: "初次建立", buy: "買入", sell: "賣出" };
   $("editTxTitle").textContent = "修改紀錄 — " + (typeLabel[tx.type] || tx.type);
-  $("etQty").value  = tx.qty;
+  $("etQty").value  = fmtQty(tx.qty);
   $("etAmt").value  = Math.round(tx.amount);
 
   const isSell = tx.type === "sell";
@@ -402,7 +433,7 @@ async function submitEditTx() {
   if (!editTxState) return;
   const { txId, stockId } = editTxState;
 
-  const newQty = Number($("etQty").value);
+  const newQty = parseQty($("etQty").value);
   const newAmt = Number($("etAmt").value);
   if (!newQty || newQty <= 0)  { alert("請輸入正確股數"); return; }
   if (isNaN(newAmt) || newAmt < 0) { alert("請輸入正確金額"); return; }
@@ -498,7 +529,7 @@ function openAddStock() {
 async function submitAddStock() {
   const code = $("asCode").value.trim().toUpperCase();
   const name = $("asName").value.trim() || code;
-  const qty  = Number($("asQty").value);
+  const qty  = parseQty($("asQty").value);
   const cost = Number($("asCost").value);
 
   if (!code)              { alert("請輸入股票代號"); return; }
@@ -575,20 +606,21 @@ async function openTrade(type, stockId) {
 
   if (type === "buy") {
     $("tradeFields").innerHTML = `
-      <input id="tQty" type="number" inputmode="decimal" placeholder="買入股數">
+      <input id="tQty" type="text" inputmode="decimal" placeholder="買入股數">
       <input id="tAmt" type="number" inputmode="decimal" placeholder="花費金額（含手續費，元）">`;
   } else {
     const s   = await idb.get("stocks", stockId);
     const avg = s && s.qty > 0 ? (s.totalCost / s.qty).toFixed(2) : 0;
     $("tradeFields").innerHTML = `
-      <input id="tQty" type="number" inputmode="decimal" placeholder="賣出股數">
-      <p class="trade-hint">目前均價 NT$ ${avg}，賣後成本等比例減少</p>`;
+      <input id="tQty" type="text" inputmode="decimal" placeholder="賣出股數">
+      <p class="trade-hint">目前均價 ${avg}，賣後成本等比例減少</p>`;
   }
   openModal("tradeModal");
+  setTimeout(() => bindQtyFormat($("tQty")), 0);
 }
 
 async function submitTrade() {
-  const qty = Number($("tQty")?.value);
+  const qty = parseQty($("tQty")?.value ?? "");
   if (!qty || qty <= 0) { alert("請輸入正確股數"); return; }
 
   const s = await idb.get("stocks", tradeStockId);
@@ -670,6 +702,8 @@ if ("serviceWorker" in navigator) {
 
 (async () => {
   await dbReady;
+  bindQtyFormat($("asQty"));   // 股數輸入框千分位格式化
+  bindQtyFormat($("etQty"));
   await renderMain();           // 先用舊資料呈現，不讓畫面空白
   priceMap = await fetchPrices();
   await updateAllPricesInDB();

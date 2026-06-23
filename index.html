@@ -70,7 +70,7 @@
       <div id="asSuggest" class="suggest-list"></div>
     </div>
     <input id="asName" placeholder="股票名稱（自動帶入）">
-    <input id="asQty" type="number" inputmode="decimal" placeholder="初始股數">
+    <input id="asQty" type="text"   inputmode="decimal" placeholder="初始股數">
     <input id="asCost" type="number" inputmode="decimal" placeholder="付出成本（含手續費，元）">
     <button class="primary-btn" onclick="submitAddStock()">新增</button>
   </div>
@@ -96,7 +96,7 @@
       <span id="editTxTitle">修改紀錄</span>
       <button class="close-btn" onclick="closeModal('editTxModal')">✕</button>
     </div>
-    <input id="etQty"  type="number" inputmode="decimal" placeholder="股數">
+    <input id="etQty"  type="text"   inputmode="decimal" placeholder="股數">
     <input id="etAmt"  type="number" inputmode="decimal" placeholder="金額（元）">
     <p id="etHint" class="trade-hint"></p>
     <button class="primary-btn" onclick="submitEditTx()">儲存修改</button>

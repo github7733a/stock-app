@@ -1,0 +1,14 @@
+{
+  "name": "股票資產管理",
+  "short_name": "股票管理",
+  "description": "台股持倉追蹤，自動抓取最新股價",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#007aff",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

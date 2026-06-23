@@ -2,136 +2,131 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <title>資產管理</title>
+  <title>股票資產管理</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="股票管理">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#007aff">
 </head>
 <body>
-<div class="container">
 
-  <h2>資產管理</h2>
+<!-- ===== 主畫面 ===== -->
+<div id="mainView" class="view">
 
-  <!-- ===== 主畫面 ===== -->
-  <div id="mainView">
-
-    <div class="card total-card">
-      <div class="total-top">
-        <div>
-          <div class="total-label">我的淨資產</div>
-          <div class="total-value" id="netWorthDisplay">NT$ 0</div>
-        </div>
-        <button class="fab-btn" onclick="openAddFlow()">＋</button>
-      </div>
-    </div>
-
-    <div class="card categories-card">
-
-      <div class="category-block">
-        <div class="category-row" onclick="toggleCategory('cash')">
-          <span class="category-name">流動資金 <span class="chev" id="cashChevron">▾</span></span>
-          <span class="category-amount" id="cashCategoryTotal">NT$ 0</span>
-        </div>
-        <div id="cashAccountList" class="account-list collapsed"></div>
-      </div>
-
-      <div class="category-block">
-        <div class="category-row" onclick="toggleCategory('invest')">
-          <span class="category-name">投資 <span class="chev" id="investChevron">▾</span></span>
-          <span class="category-amount" id="investCategoryTotal">NT$ 0</span>
-        </div>
-        <div id="investAccountList" class="account-list collapsed"></div>
-      </div>
-
-      <div class="category-block">
-        <div class="category-row" onclick="toggleCategory('debt')">
-          <span class="category-name">負債 <span class="chev" id="debtChevron">▾</span></span>
-          <span class="category-amount" id="debtCategoryTotal">NT$ 0</span>
-        </div>
-        <div id="debtAccountList" class="account-list collapsed"></div>
-      </div>
-
-    </div>
-
-    <div id="priceStatus" class="price-status"></div>
+  <div class="topbar">
+    <span class="topbar-title">股票資產管理</span>
+    <button class="icon-btn" onclick="openAddStock()" title="新增股票">＋</button>
   </div>
 
-  <!-- ===== 新增帳戶 覆蓋層 ===== -->
-  <div id="addFlowOverlay" class="overlay hidden">
-    <div class="overlay-header">
-      <button class="back-btn" onclick="closeAddFlow()">‹ 取消</button>
-      <span>新增帳戶</span>
-      <span class="header-spacer"></span>
+  <div id="priceStatusBar" class="status-bar">載入中…</div>
+
+  <!-- 股票清單表格 -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <span>股名</span>
+      <span class="col-r">股數</span>
+      <span class="col-r">總損益</span>
     </div>
+    <div id="stockRows"></div>
 
-    <div class="overlay-body">
-      <div id="addStep1">
-        <p class="overlay-hint">選擇類別</p>
-        <button onclick="selectAddCategory('cash')">流動資金</button>
-        <button onclick="selectAddCategory('invest')">投資</button>
-        <button onclick="selectAddCategory('debt')">負債</button>
+    <!-- 總計列 -->
+    <div class="summary-row">
+      <div class="summary-line">
+        <span>總預估損益</span><span id="totalPL" class="val">—</span>
+        <span class="sep">|</span>
+        <span>總報酬率</span><span id="totalRate" class="val">—</span>
       </div>
-
-      <div id="addStep2" class="hidden">
-        <p class="overlay-hint" id="addStep2Title">流動資金</p>
-
-        <div id="addInvestCodeWrap" class="autocomplete-wrap hidden">
-          <input id="addAccountCode" placeholder="輸入股票代號或名稱（選填，可不填自訂投資）" autocomplete="off">
-          <div id="addSuggestList" class="suggest-list"></div>
-        </div>
-
-        <input id="addAccountName" placeholder="帳戶名稱（例如：銀行存款 / 台積電）">
-
-        <input id="addAccountQty" type="number" placeholder="股數" class="hidden">
-        <input id="addAccountAmount" type="number" placeholder="金額">
-
-        <button onclick="submitAddAccount()">儲存</button>
+      <div class="summary-line">
+        <span>總預估現值</span><span id="totalValue" class="val">—</span>
+        <span class="sep">|</span>
+        <span>總成本</span><span id="totalCost" class="val">—</span>
       </div>
     </div>
   </div>
 
-  <!-- ===== 帳戶詳情 覆蓋層 ===== -->
-  <div id="detailOverlay" class="overlay hidden">
-    <div class="overlay-header">
-      <button class="back-btn" onclick="closeDetail()">‹ 返回</button>
-      <span>帳戶詳情</span>
-      <button class="back-btn danger" onclick="deleteAccount()">刪除</button>
+</div>
+
+<!-- ===== 股票詳情 覆蓋層 ===== -->
+<div id="detailView" class="view hidden">
+
+  <div class="topbar">
+    <button class="icon-btn" onclick="closeDetail()">‹</button>
+    <span class="topbar-title" id="detailTitle">—</span>
+    <button class="icon-btn danger" onclick="deleteCurrentStock()">刪除</button>
+  </div>
+
+  <!-- 指標卡 -->
+  <div class="metric-grid card">
+    <div class="metric">
+      <div class="metric-label">成交均價</div>
+      <div class="metric-val" id="mAvgCost">—</div>
     </div>
-
-    <div class="overlay-body">
-      <div class="detail-header">
-        <div class="detail-name" id="detailName">—</div>
-        <div class="detail-balance" id="detailBalance">NT$ 0</div>
-        <div class="detail-qty-price hidden" id="detailQtyPriceRow">
-          <span id="detailQtyPriceText"></span>
-        </div>
-      </div>
-
-      <div class="detail-actions">
-        <button class="secondary-btn" onclick="showEditor('delta')"><span id="deltaBtnLabel">增減金額</span></button>
-        <button class="secondary-btn" onclick="showEditor('balance')">修改餘額</button>
-      </div>
-
-      <div id="editorDelta" class="inline-editor hidden">
-        <input id="deltaInput" type="number" placeholder="輸入金額，減少請輸入負數">
-        <div class="editor-btn-row">
-          <button class="ghost-btn" onclick="cancelEditor()">取消</button>
-          <button onclick="confirmDelta()">確認</button>
-        </div>
-      </div>
-
-      <div id="editorBalance" class="inline-editor hidden">
-        <input id="balanceInput" type="number" placeholder="輸入新的餘額">
-        <div class="editor-btn-row">
-          <button class="ghost-btn" onclick="cancelEditor()">取消</button>
-          <button onclick="confirmBalance()">確認</button>
-        </div>
-      </div>
-
-      <h3 class="tx-title">變動紀錄</h3>
-      <div id="txList"></div>
+    <div class="metric">
+      <div class="metric-label">現值</div>
+      <div class="metric-val" id="mCurrentValue">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">市價</div>
+      <div class="metric-val" id="mPrice">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">預估損益</div>
+      <div class="metric-val" id="mPL">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">付出成本</div>
+      <div class="metric-val" id="mTotalCost">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">報酬率</div>
+      <div class="metric-val" id="mRate">—</div>
     </div>
   </div>
 
+  <!-- 操作按鈕 -->
+  <div class="action-row">
+    <button class="buy-btn" onclick="openTrade('buy')">買入</button>
+    <button class="sell-btn" onclick="openTrade('sell')">賣出</button>
+  </div>
+
+  <!-- 交易紀錄 -->
+  <div class="section-title">交易紀錄</div>
+  <div id="txList" class="tx-list"></div>
+
+</div>
+
+<!-- ===== 新增股票 Modal ===== -->
+<div id="addStockModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span>新增股票</span>
+      <button class="icon-btn" onclick="closeModal('addStockModal')">✕</button>
+    </div>
+    <div class="autocomplete-wrap">
+      <input id="asCode" placeholder="股票代號（例：2330）" autocomplete="off">
+      <div id="asSuggest" class="suggest-list"></div>
+    </div>
+    <input id="asName" placeholder="股票名稱（自動帶入）">
+    <input id="asQty" type="number" placeholder="初始股數">
+    <input id="asCost" type="number" placeholder="付出成本（含手續費，元）">
+    <button onclick="submitAddStock()">新增</button>
+  </div>
+</div>
+
+<!-- ===== 買入 / 賣出 Modal ===== -->
+<div id="tradeModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="tradeModalTitle">買入</span>
+      <button class="icon-btn" onclick="closeModal('tradeModal')">✕</button>
+    </div>
+    <div id="tradeFields"></div>
+    <button id="tradeConfirmBtn" onclick="submitTrade()">確認</button>
+  </div>
 </div>
 
 <script src="app.js"></script>

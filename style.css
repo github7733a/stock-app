@@ -347,3 +347,30 @@ html, body {
 .suggest-item:last-child { border-bottom: none; }
 .suggest-item:active { background: var(--bg); }
 .suggest-price { color: var(--blue); font-weight: 600; }
+
+/* ── Transaction action buttons ───────────── */
+.tx-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.tx-edit-btn, .tx-del-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tx-edit-btn {
+  background: #e8f0ff;
+  color: var(--blue);
+}
+
+.tx-del-btn {
+  background: #fff0f0;
+  color: var(--red);
+}

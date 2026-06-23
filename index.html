@@ -88,6 +88,21 @@
   </div>
 </div>
 
+
+<!-- ===== 修改交易紀錄 Modal ===== -->
+<div id="editTxModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="editTxTitle">修改紀錄</span>
+      <button class="close-btn" onclick="closeModal('editTxModal')">✕</button>
+    </div>
+    <input id="etQty"  type="number" inputmode="decimal" placeholder="股數">
+    <input id="etAmt"  type="number" inputmode="decimal" placeholder="金額（元）">
+    <p id="etHint" class="trade-hint"></p>
+    <button class="primary-btn" onclick="submitEditTx()">儲存修改</button>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

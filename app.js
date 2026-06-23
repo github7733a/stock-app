@@ -2,7 +2,7 @@
 /* ============================================================
    股票資產管理 app.js
    - IndexedDB: stocks + transactions
-   - 股價：每次開啟頁面向 TWSE / TPEx 直接抓（CORS 開放）
+   - 股價：透過 /api/prices（Cloudflare Pages Function）伺服器端代抓
    - 主畫面手風琴式展開明細，不開新頁面
    ============================================================ */
 
@@ -76,14 +76,12 @@ const idb = {
 
 const $ = id => document.getElementById(id);
 
-function fmtK(n) {                            // 精簡金額：萬以上顯示「萬」
+function fmtK(n) {                            // 完整數字（不縮寫）
   const v = Number(n) || 0;
-  if (Math.abs(v) >= 10000)
-    return (v / 10000).toFixed(1) + "萬";
   return Math.round(v).toLocaleString("zh-TW");
 }
 
-function fmtFull(n) {                         // 完整金額
+function fmtFull(n) {                         // 帶 NT$ 完整金額
   const v = Number(n) || 0;
   return "NT$ " + Math.round(Math.abs(v)).toLocaleString("zh-TW");
 }
@@ -140,40 +138,30 @@ async function fetchPrices() {
   setStatus("股價更新中…", false);
   const map = {};
 
-  // 同時抓上市 & 上櫃，兩者都有 CORS header
-  const sources = [
-    { url: "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",   label: "TWSE" },
-    { url: "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", label: "TPEx" }
-  ];
-
-  const results = await Promise.allSettled(sources.map(async src => {
-    const res  = await fetch(src.url, { cache: "no-cache" });
+  // 透過 Cloudflare Pages Function（/api/prices）在伺服器端代抓
+  // 避免瀏覽器直接打 TWSE/TPEx 被 CORS 擋住
+  try {
+    const res = await fetch("/api/prices", { cache: "no-cache" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (!Array.isArray(data)) throw new Error("非陣列回傳");
-    let count = 0;
     data.forEach(item => {
       const q = normalizeQuote(item);
-      if (q && !map[q.code]) { map[q.code] = q; count++; }
+      if (q && !map[q.code]) map[q.code] = q;
     });
-    console.log(`${src.label}: 抓到 ${count} 筆`);
-  }));
-
-  // 診斷
-  results.forEach((r, i) => {
-    if (r.status === "rejected")
-      console.warn(`${sources[i].label} 失敗:`, r.reason?.message);
-  });
+    console.log(`/api/prices: 抓到 ${Object.keys(map).length} 筆`);
+  } catch (err) {
+    console.warn("/api/prices 失敗:", err.message);
+  }
 
   const total = Object.keys(map).length;
   if (total === 0) {
-    // 嘗試從 localStorage 讀上次快取
     const cached = loadPriceCache();
     if (cached) {
-      setStatus(`⚠️ 今日股價無法取得（假日？），顯示 ${cached.date} 快取資料`, false);
+      setStatus(`⚠️ 今日股價無法取得，顯示 ${cached.date} 快取資料`, false);
       return cached.map;
     }
-    setStatus("⚠️ 股價抓取失敗（可能是假日或非交易日，股價可手動查詢後輸入）", false);
+    setStatus("⚠️ 股價抓取失敗", false);
     return {};
   }
 
@@ -340,15 +328,130 @@ async function loadTxIntoPanel(stockId) {
     const isSell = t.type === "sell";
     const qSign  = isSell ? "−" : "+";
     const qCls   = isSell ? "neg" : "pos";
-    return `<div class="tx-row">
+    return `<div class="tx-row" id="txrow-${t.id}">
       <div class="tx-main">
         <span class="tx-type ${qCls}">${typeLabel[t.type] || t.type}</span>
         <span class="tx-qty ${qCls}">${qSign}${t.qty} 股</span>
         <span class="tx-amt">${fmtFull(t.amount)}</span>
+        <span class="tx-actions">
+          <button class="tx-edit-btn" onclick="editTx(${t.id},${stockId})">修改</button>
+          <button class="tx-del-btn"  onclick="deleteTx(${t.id},${stockId})">刪除</button>
+        </span>
       </div>
       <div class="tx-date">${fmtDate(t.timestamp)}</div>
     </div>`;
   }).join("") || '<div class="empty-tip">尚無交易紀錄</div>';
+}
+
+/* ── 交易紀錄 修改 / 刪除 ────────────────────────────────────── */
+
+async function deleteTx(txId, stockId) {
+  if (!confirm("確定刪除這筆交易紀錄？")) return;
+
+  // 拿回這筆 tx 以便反推對股票的影響
+  const tx = await idb.get("transactions", txId);
+  if (!tx) return;
+
+  const s = await idb.get("stocks", stockId);
+  if (!s) { await idb.del("transactions", txId); return; }
+
+  // 反向還原：刪除一筆 buy → 減少成本和股數；刪除一筆 sell → 恢復成本和股數
+  if (tx.type === "buy") {
+    s.qty       -= tx.qty;
+    s.totalCost -= tx.amount;
+  } else if (tx.type === "sell") {
+    s.qty       += tx.qty;
+    s.totalCost += tx.amount;  // amount 在賣出時就是 sellQty * avgCostAtTime
+  } else if (tx.type === "init") {
+    s.qty       -= tx.qty;
+    s.totalCost -= tx.amount;
+  }
+
+  await idb.del("transactions", txId);
+
+  if (s.qty <= 0) {
+    await idb.del("stocks", stockId);
+    expandedId = null;
+  } else {
+    await idb.put("stocks", s);
+  }
+  await renderMain();
+}
+
+let editTxState = null;   // { txId, stockId, type }
+
+async function editTx(txId, stockId) {
+  const tx = await idb.get("transactions", txId);
+  if (!tx) return;
+  editTxState = { txId, stockId, type: tx.type };
+
+  const typeLabel = { init: "初次建立", buy: "買入", sell: "賣出" };
+  $("editTxTitle").textContent = "修改紀錄 — " + (typeLabel[tx.type] || tx.type);
+  $("etQty").value  = tx.qty;
+  $("etAmt").value  = Math.round(tx.amount);
+
+  const isSell = tx.type === "sell";
+  $("etHint").textContent = isSell
+    ? "賣出金額 = 賣出股數 × 當時平均成本（用於還原成本）"
+    : "花費金額（含手續費）";
+
+  openModal("editTxModal");
+}
+
+async function submitEditTx() {
+  if (!editTxState) return;
+  const { txId, stockId } = editTxState;
+
+  const newQty = Number($("etQty").value);
+  const newAmt = Number($("etAmt").value);
+  if (!newQty || newQty <= 0)  { alert("請輸入正確股數"); return; }
+  if (isNaN(newAmt) || newAmt < 0) { alert("請輸入正確金額"); return; }
+
+  const tx = await idb.get("transactions", txId);
+  const s  = await idb.get("stocks", stockId);
+  if (!tx || !s) return;
+
+  // 反向還原舊的影響
+  if (tx.type === "buy" || tx.type === "init") {
+    s.qty       -= tx.qty;
+    s.totalCost -= tx.amount;
+  } else if (tx.type === "sell") {
+    s.qty       += tx.qty;
+    s.totalCost += tx.amount;
+  }
+
+  // 套用新值
+  if (tx.type === "buy" || tx.type === "init") {
+    s.qty       += newQty;
+    s.totalCost += newAmt;
+  } else if (tx.type === "sell") {
+    s.qty       -= newQty;
+    s.totalCost -= newAmt;
+  }
+
+  tx.qty    = newQty;
+  tx.amount = newAmt;
+
+  closeModal("editTxModal");
+  editTxState = null;
+
+  if (s.qty <= 0) {
+    await idb.del("stocks", stockId);
+    await idb.del("transactions", txId);
+    expandedId = null;
+    await renderMain();
+    return;
+  }
+
+  await idb.put("stocks", s);
+  await idb.put("transactions", tx);
+
+  const panel = $("panel-" + stockId);
+  if (panel && !panel.classList.contains("hidden")) {
+    const fresh = await idb.get("stocks", stockId);
+    if (fresh) { panel.innerHTML = buildDetailHTML(fresh); await loadTxIntoPanel(stockId); }
+  }
+  await renderMain();
 }
 
 /* ── 手風琴展開 ─────────────────────────────────────────────── */

@@ -1,26 +1,16 @@
+"use strict";
 /* ============================================================
-   股票資產管理 — app.js
-   IndexedDB v1（全新）
-   stocks: { id, code, name, qty, totalCost, price, priceAt }
-   transactions: { id, stockId, type:'init'|'buy'|'sell',
-                   qty, amount, avgCostBefore, timestamp }
-
-   股價來源：
-   - TWSE openapi (上市) — https://openapi.twse.com.tw
-   - TPEx openapi  (上櫃) — https://www.tpex.org.tw
-   兩者都有 Access-Control-Allow-Origin: * 可直接從瀏覽器抓
+   股票資產管理 app.js
+   - IndexedDB: stocks + transactions
+   - 股價：每次開啟頁面向 TWSE / TPEx 直接抓（CORS 開放）
+   - 主畫面手風琴式展開明細，不開新頁面
    ============================================================ */
 
-"use strict";
-
-/* ── IndexedDB ────────────────────────────────────────────── */
+/* ── IndexedDB ─────────────────────────────────────────────── */
 
 let db;
-const DB_NAME = "stockAppDB";
-const DB_VER  = 1;
-
 const dbReady = new Promise((resolve, reject) => {
-  const req = indexedDB.open(DB_NAME, DB_VER);
+  const req = indexedDB.open("stockAppDB", 1);
 
   req.onupgradeneeded = e => {
     const d = e.target.result;
@@ -28,106 +18,80 @@ const dbReady = new Promise((resolve, reject) => {
       d.createObjectStore("stocks", { keyPath: "id", autoIncrement: true });
     }
     if (!d.objectStoreNames.contains("transactions")) {
-      const ts = d.createObjectStore("transactions", { keyPath: "id", autoIncrement: true });
+      const ts = d.createObjectStore("transactions",
+        { keyPath: "id", autoIncrement: true });
       ts.createIndex("stockId", "stockId", { unique: false });
     }
   };
 
-  req.onsuccess = e => { db = e.target.result; resolve(db); };
+  req.onsuccess = e => { db = e.target.result; resolve(); };
   req.onerror   = e => reject(e.target.error);
 });
 
-function dbGet(store, key) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, "readonly");
-    const r = tx.objectStore(store).get(key);
+const idb = {
+  get: (store, key) => new Promise((res, rej) => {
+    const r = db.transaction(store).objectStore(store).get(key);
     r.onsuccess = () => res(r.result);
     r.onerror   = () => rej(r.error);
-  });
-}
-
-function dbGetAll(store) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, "readonly");
-    const r = tx.objectStore(store).getAll();
+  }),
+  all: store => new Promise((res, rej) => {
+    const r = db.transaction(store).objectStore(store).getAll();
     r.onsuccess = () => res(r.result);
     r.onerror   = () => rej(r.error);
-  });
-}
-
-function dbPut(store, record) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, "readwrite");
-    const r = tx.objectStore(store).put(record);
+  }),
+  put: (store, rec) => new Promise((res, rej) => {
+    const r = db.transaction(store, "readwrite").objectStore(store).put(rec);
     r.onsuccess = () => res(r.result);
     r.onerror   = () => rej(r.error);
-  });
-}
-
-function dbAdd(store, record) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, "readwrite");
-    const r = tx.objectStore(store).add(record);
+  }),
+  add: (store, rec) => new Promise((res, rej) => {
+    const r = db.transaction(store, "readwrite").objectStore(store).add(rec);
     r.onsuccess = () => res(r.result);
     r.onerror   = () => rej(r.error);
-  });
-}
-
-function dbDelete(store, key) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, "readwrite");
-    const r = tx.objectStore(store).delete(key);
+  }),
+  del: (store, key) => new Promise((res, rej) => {
+    const r = db.transaction(store, "readwrite").objectStore(store).delete(key);
     r.onsuccess = () => res();
     r.onerror   = () => rej(r.error);
-  });
-}
-
-function dbGetByIndex(store, index, value) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, "readonly");
-    const r = tx.objectStore(store).index(index).getAll(value);
+  }),
+  byIndex: (store, idx, val) => new Promise((res, rej) => {
+    const r = db.transaction(store).objectStore(store).index(idx).getAll(val);
     r.onsuccess = () => res(r.result);
     r.onerror   = () => rej(r.error);
-  });
-}
-
-function dbDeleteByIndex(store, index, value) {
-  return new Promise((res, rej) => {
+  }),
+  delByIndex: (store, idx, val) => new Promise((res, rej) => {
     const tx = db.transaction(store, "readwrite");
-    const objStore = tx.objectStore(store);
-    const r = objStore.index(index).openCursor(IDBKeyRange.only(value));
+    const r  = tx.objectStore(store).index(idx)
+                 .openCursor(IDBKeyRange.only(val));
     r.onsuccess = e => {
-      const cursor = e.target.result;
-      if (cursor) { cursor.delete(); cursor.continue(); }
+      const c = e.target.result;
+      if (c) { c.delete(); c.continue(); }
     };
     tx.oncomplete = () => res();
     tx.onerror    = () => rej(tx.error);
-  });
-}
+  })
+};
 
-/* ── 格式化工具 ─────────────────────────────────────────────── */
+/* ── 格式化 ─────────────────────────────────────────────────── */
 
 const $ = id => document.getElementById(id);
 
-function fmtMoney(n) {
+function fmtK(n) {                            // 精簡金額：萬以上顯示「萬」
   const v = Number(n) || 0;
-  if (Math.abs(v) >= 10000) {
-    return (v / 10000).toFixed(1) + " 萬";
-  }
-  return v.toLocaleString("zh-TW", { maximumFractionDigits: 0 });
+  if (Math.abs(v) >= 10000)
+    return (v / 10000).toFixed(1) + "萬";
+  return Math.round(v).toLocaleString("zh-TW");
 }
 
-function fmtMoneyFull(n) {
+function fmtFull(n) {                         // 完整金額
   const v = Number(n) || 0;
-  const sign = v < 0 ? "-" : "";
-  return sign + "NT$ " + Math.round(Math.abs(v)).toLocaleString("zh-TW");
+  return "NT$ " + Math.round(Math.abs(v)).toLocaleString("zh-TW");
 }
 
 function fmtRate(r) {
   const v = Number(r);
   if (!isFinite(v)) return "—";
-  const sign = v > 0 ? "+" : "";
-  return sign + v.toFixed(2) + "%";
+  return (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
 }
 
 function fmtDate(ts) {
@@ -137,106 +101,345 @@ function fmtDate(ts) {
   });
 }
 
-function plClass(n) {
-  const v = Number(n);
-  if (v > 0) return "pos";
-  if (v < 0) return "neg";
-  return "";
+function pc(n) {                              // CSS class for red/green
+  return Number(n) > 0 ? "pos" : Number(n) < 0 ? "neg" : "";
 }
 
 /* ── 股價抓取 ───────────────────────────────────────────────── */
 
-let priceMap = {};  // code -> price
+let priceMap = {};   // code -> { code, name, price }
 
 function normalizeQuote(item) {
   if (!item || typeof item !== "object") return null;
   const keys = Object.keys(item);
-  const codeKey  = keys.find(k => /code/i.test(k) || k.includes("代號") || k.includes("代碼"));
-  const nameKey  = keys.find(k => /name/i.test(k) || k.includes("名稱"));
-  const closeKey = keys.find(k => /^closingprice$/i.test(k) || /close/i.test(k) || k.includes("收盤"));
+
+  // 找代號欄位（TWSE: "Code", TPEx: "SecuritiesCompanyCode" 等）
+  const codeKey = keys.find(k =>
+    k === "Code" || /code/i.test(k) || k.includes("代號") || k.includes("代碼"));
+
+  // 找名稱欄位（TWSE: "Name", TPEx: "CompanyName" 等）
+  const nameKey = keys.find(k =>
+    k === "Name" || k === "StockName" || /name/i.test(k) || k.includes("名稱"));
+
+  // 找收盤價欄位（TWSE: "ClosingPrice", TPEx: "Close" 等）
+  const closeKey = keys.find(k =>
+    k === "ClosingPrice" || k === "Close" ||
+    /^closingprice$/i.test(k) || /close/i.test(k) || k.includes("收盤"));
+
   if (!codeKey || !closeKey) return null;
+
   const code  = String(item[codeKey]).trim();
   const name  = nameKey ? String(item[nameKey]).trim() : code;
   const price = parseFloat(String(item[closeKey]).replace(/,/g, ""));
+
   if (!code || !/^\w{1,10}$/.test(code) || isNaN(price) || price <= 0) return null;
   return { code, name, price };
 }
 
 async function fetchPrices() {
-  setStatus("股價更新中…");
-  const sources = [
-    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"
-  ];
+  setStatus("股價更新中…", false);
   const map = {};
-  await Promise.allSettled(sources.map(async url => {
-    try {
-      const res = await fetch(url, { cache: "no-cache" });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        data.forEach(item => {
-          const q = normalizeQuote(item);
-          if (q && !map[q.code]) map[q.code] = q;
-        });
-      }
-    } catch (err) {
-      console.warn("股價抓取失敗:", url, err.message);
-    }
+
+  // 同時抓上市 & 上櫃，兩者都有 CORS header
+  const sources = [
+    { url: "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",   label: "TWSE" },
+    { url: "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", label: "TPEx" }
+  ];
+
+  const results = await Promise.allSettled(sources.map(async src => {
+    const res  = await fetch(src.url, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("非陣列回傳");
+    let count = 0;
+    data.forEach(item => {
+      const q = normalizeQuote(item);
+      if (q && !map[q.code]) { map[q.code] = q; count++; }
+    });
+    console.log(`${src.label}: 抓到 ${count} 筆`);
   }));
+
+  // 診斷
+  results.forEach((r, i) => {
+    if (r.status === "rejected")
+      console.warn(`${sources[i].label} 失敗:`, r.reason?.message);
+  });
+
+  const total = Object.keys(map).length;
+  if (total === 0) {
+    // 嘗試從 localStorage 讀上次快取
+    const cached = loadPriceCache();
+    if (cached) {
+      setStatus(`⚠️ 今日股價無法取得（假日？），顯示 ${cached.date} 快取資料`, false);
+      return cached.map;
+    }
+    setStatus("⚠️ 股價抓取失敗（可能是假日或非交易日，股價可手動查詢後輸入）", false);
+    return {};
+  }
+
+  savePriceCache(map);
+  setStatus(
+    `股價已更新 ${new Date().toLocaleTimeString("zh-TW",
+      { hour: "numeric", minute: "2-digit" })}（收盤價，非即時）— 共 ${total} 檔`,
+    false
+  );
   return map;
 }
 
-async function refreshPricesAndRender() {
+function savePriceCache(map) {
+  try {
+    const d = new Date();
+    const date = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+    localStorage.setItem("priceCache", JSON.stringify({ date, map }));
+  } catch(e) {}
+}
+
+function loadPriceCache() {
+  try {
+    const raw = localStorage.getItem("priceCache");
+    if (!raw) return null;
+    return JSON.parse(raw);   // { date, map }
+  } catch(e) { return null; }
+}
+
+function setStatus(text, loading) {
+  $("priceStatusText").textContent = text;
+}
+
+async function doRefresh() {
   priceMap = await fetchPrices();
-  const total = Object.keys(priceMap).length;
+  await updateAllPricesInDB();
+  await renderMain();
+}
 
-  if (total === 0) {
-    setStatus("⚠️ 股價抓取失敗（非交易時段可能無資料）");
-  } else {
-    setStatus(`股價已更新 ${new Date().toLocaleString("zh-TW", { hour: "numeric", minute: "2-digit" })}（收盤價，非即時）— 共 ${total} 檔`);
-  }
-
-  // 把最新股價寫回資料庫
-  const stocks = await dbGetAll("stocks");
+async function updateAllPricesInDB() {
+  const stocks = await idb.all("stocks");
   await Promise.all(stocks.map(async s => {
     if (s.code && priceMap[s.code]) {
       s.price   = priceMap[s.code].price;
       s.priceAt = Date.now();
-      await dbPut("stocks", s);
+      await idb.put("stocks", s);
     }
   }));
+}
 
-  await renderMain();
+/* ── 主畫面渲染 ─────────────────────────────────────────────── */
 
-  // 如果詳情頁開著，也同步更新
-  if (!$("detailView").classList.contains("hidden") && currentStockId != null) {
-    const s = await dbGet("stocks", currentStockId);
-    if (s) renderDetailHeader(s);
+let expandedId = null;   // 目前展開的股票 id
+
+async function renderMain() {
+  const stocks = await idb.all("stocks");
+
+  let totalValue = 0, totalCostSum = 0;
+  let html = "";
+
+  if (!stocks.length) {
+    html = '<div class="empty-tip">尚未新增任何股票<br>點右上角「＋」新增</div>';
+    $("summaryBlock").style.display = "none";
+  } else {
+    stocks.forEach(s => {
+      const cv   = s.qty * s.price;
+      const pl   = cv - s.totalCost;
+      const sign = pl >= 0 ? "+" : "";
+      totalValue   += cv;
+      totalCostSum += s.totalCost;
+
+      const isOpen = expandedId === s.id;
+      html += `
+        <div class="stock-item" id="item-${s.id}">
+          <div class="stock-row" onclick="toggleDetail(${s.id})">
+            <div class="stock-name-col">
+              <span class="s-name">${s.name || s.code}</span>
+              <span class="s-code">${s.code}</span>
+            </div>
+            <span class="col-r">${s.qty}</span>
+            <span class="col-r ${pc(pl)}">${sign}${fmtK(pl)}</span>
+            <span class="col-chev ${isOpen ? "open" : ""}">›</span>
+          </div>
+          <div class="detail-panel ${isOpen ? "" : "hidden"}" id="panel-${s.id}">
+            ${buildDetailHTML(s)}
+          </div>
+        </div>`;
+    });
+
+    $("summaryBlock").style.display = "";
+    const pl   = totalValue - totalCostSum;
+    const rate = totalCostSum > 0 ? (pl / totalCostSum) * 100 : NaN;
+    const cls  = pc(pl);
+    $("totalPL").textContent    = (pl >= 0 ? "+" : "") + fmtK(pl);
+    $("totalPL").className      = "sum-val " + cls;
+    $("totalRate").textContent  = fmtRate(rate);
+    $("totalRate").className    = "sum-val " + cls;
+    $("totalValue").textContent = fmtK(totalValue);
+    $("totalCost").textContent  = fmtK(totalCostSum);
+  }
+
+  $("stockRows").innerHTML = html;
+
+  // 如果有展開的，補入交易紀錄
+  if (expandedId != null) {
+    await loadTxIntoPanel(expandedId);
   }
 }
 
-function setStatus(text) {
-  $("priceStatusBar").textContent = text;
+function buildDetailHTML(s) {
+  const cv   = s.qty * s.price;
+  const pl   = cv - s.totalCost;
+  const avg  = s.qty > 0 ? s.totalCost / s.qty : 0;
+  const rate = s.totalCost > 0 ? (pl / s.totalCost) * 100 : NaN;
+  const cls  = pc(pl);
+  const sign = pl >= 0 ? "+" : "";
+
+  return `
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="m-label">成交均價</div>
+        <div class="m-val">${fmtFull(avg)}</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">現值</div>
+        <div class="m-val">${fmtFull(cv)}</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">市價</div>
+        <div class="m-val">${fmtFull(s.price)}</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">預估損益</div>
+        <div class="m-val ${cls}">${sign}${fmtFull(pl)}</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">付出成本</div>
+        <div class="m-val">${fmtFull(s.totalCost)}</div>
+      </div>
+      <div class="metric">
+        <div class="m-label">報酬率</div>
+        <div class="m-val ${cls}">${fmtRate(rate)}</div>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="buy-btn"  onclick="openTrade('buy',${s.id})">買入</button>
+      <button class="sell-btn" onclick="openTrade('sell',${s.id})">賣出</button>
+      <button class="del-btn"  onclick="deleteStock(${s.id})">刪除</button>
+    </div>
+    <div class="tx-section">
+      <div class="tx-title">交易紀錄</div>
+      <div id="tx-${s.id}"><span class="loading-tip">載入中…</span></div>
+    </div>`;
+}
+
+async function loadTxIntoPanel(stockId) {
+  const el = $("tx-" + stockId);
+  if (!el) return;
+
+  const txs = await idb.byIndex("transactions", "stockId", stockId);
+  txs.sort((a, b) => b.timestamp - a.timestamp);
+
+  const typeLabel = { init: "初次建立", buy: "買入", sell: "賣出" };
+  el.innerHTML = txs.map(t => {
+    const isSell = t.type === "sell";
+    const qSign  = isSell ? "−" : "+";
+    const qCls   = isSell ? "neg" : "pos";
+    return `<div class="tx-row">
+      <div class="tx-main">
+        <span class="tx-type ${qCls}">${typeLabel[t.type] || t.type}</span>
+        <span class="tx-qty ${qCls}">${qSign}${t.qty} 股</span>
+        <span class="tx-amt">${fmtFull(t.amount)}</span>
+      </div>
+      <div class="tx-date">${fmtDate(t.timestamp)}</div>
+    </div>`;
+  }).join("") || '<div class="empty-tip">尚無交易紀錄</div>';
+}
+
+/* ── 手風琴展開 ─────────────────────────────────────────────── */
+
+async function toggleDetail(id) {
+  const panel = $("panel-" + id);
+  const chev  = panel ? panel.closest(".stock-item").querySelector(".col-chev") : null;
+
+  if (expandedId === id) {
+    // 折疊
+    panel.classList.add("hidden");
+    if (chev) chev.classList.remove("open");
+    expandedId = null;
+    return;
+  }
+
+  // 折疊上一個
+  if (expandedId != null) {
+    const prev = $("panel-" + expandedId);
+    if (prev) prev.classList.add("hidden");
+    const prevItem = $("item-" + expandedId);
+    if (prevItem) prevItem.querySelector(".col-chev")?.classList.remove("open");
+  }
+
+  expandedId = id;
+  if (chev) chev.classList.add("open");
+
+  // 補入最新內容
+  const s = await idb.get("stocks", id);
+  if (!s) return;
+  panel.innerHTML = buildDetailHTML(s);
+  panel.classList.remove("hidden");
+  await loadTxIntoPanel(id);
+}
+
+/* ── 新增股票 ───────────────────────────────────────────────── */
+
+function openAddStock() {
+  ["asCode","asName","asQty","asCost"].forEach(id => $(id).value = "");
+  $("asSuggest").style.display = "none";
+  openModal("addModal");
+}
+
+async function submitAddStock() {
+  const code = $("asCode").value.trim().toUpperCase();
+  const name = $("asName").value.trim() || code;
+  const qty  = Number($("asQty").value);
+  const cost = Number($("asCost").value);
+
+  if (!code)              { alert("請輸入股票代號"); return; }
+  if (!qty || qty <= 0)   { alert("請輸入正確股數"); return; }
+  if (!cost || cost <= 0) { alert("請輸入付出成本"); return; }
+
+  const price = priceMap[code]?.price ?? (cost / qty);
+
+  const stockId = await idb.add("stocks", {
+    code, name, qty,
+    totalCost: cost,
+    price,
+    priceAt: Date.now()
+  });
+
+  await idb.add("transactions", {
+    stockId,
+    type: "init",
+    qty,
+    amount: cost,
+    timestamp: Date.now()
+  });
+
+  closeModal("addModal");
+  await renderMain();
 }
 
 /* ── 自動完成 ───────────────────────────────────────────────── */
 
-let suggestPriceList = [];  // [{ code, name, price }] derived from priceMap on demand
-
 $("asCode").addEventListener("input", () => {
   const q = $("asCode").value.trim();
-  if (!q) { hideSuggest(); return; }
-
-  const src = suggestPriceList.length ? suggestPriceList : Object.values(priceMap);
-  const matches = src
+  if (!q || !Object.keys(priceMap).length) {
+    $("asSuggest").style.display = "none"; return;
+  }
+  const list = Object.values(priceMap);
+  const matches = list
     .filter(p => p.code.startsWith(q) || (p.name && p.name.includes(q)))
     .slice(0, 8);
 
-  if (!matches.length) { hideSuggest(); return; }
+  if (!matches.length) { $("asSuggest").style.display = "none"; return; }
 
   $("asSuggest").innerHTML = matches.map(m =>
-    `<div class="suggest-item" data-code="${m.code}" data-name="${m.name}" data-price="${m.price}">
+    `<div class="suggest-item"
+         data-code="${m.code}" data-name="${m.name}" data-price="${m.price}">
        <span>${m.code} ${m.name}</span>
        <span class="suggest-price">${m.price}</span>
      </div>`
@@ -249,289 +452,123 @@ $("asSuggest").addEventListener("click", e => {
   if (!item) return;
   $("asCode").value  = item.dataset.code;
   $("asName").value  = item.dataset.name;
-  hideSuggest();
+  $("asSuggest").style.display = "none";
 });
 
 document.addEventListener("click", e => {
-  if (!e.target.closest(".autocomplete-wrap")) hideSuggest();
+  if (!e.target.closest(".autocomplete-wrap"))
+    $("asSuggest").style.display = "none";
 });
-
-function hideSuggest() {
-  $("asSuggest").style.display = "none";
-}
-
-/* ── 主畫面渲染 ─────────────────────────────────────────────── */
-
-async function renderMain() {
-  const stocks = await dbGetAll("stocks");
-
-  let totalValue = 0, totalCostSum = 0;
-  let rows = "";
-
-  if (!stocks.length) {
-    rows = '<div class="empty-tip">尚未新增任何股票<br>點右上角「＋」新增</div>';
-  } else {
-    stocks.forEach(s => {
-      const cv   = s.qty * s.price;
-      const pl   = cv - s.totalCost;
-      const pCls = plClass(pl);
-      const sign = pl > 0 ? "+" : "";
-      totalValue   += cv;
-      totalCostSum += s.totalCost;
-      rows += `
-        <div class="stock-row" onclick="openDetail(${s.id})">
-          <div class="stock-name">
-            <span class="s-name">${s.name || s.code}</span>
-            <span class="s-code">${s.code}</span>
-          </div>
-          <span class="col-r">${s.qty}</span>
-          <span class="col-r ${pCls}">${sign}${fmtMoney(pl)}</span>
-        </div>`;
-    });
-  }
-
-  $("stockRows").innerHTML = rows;
-
-  const totalPL   = totalValue - totalCostSum;
-  const totalRate = totalCostSum > 0 ? (totalPL / totalCostSum) * 100 : NaN;
-  const plCls     = plClass(totalPL);
-
-  $("totalPL").textContent    = (totalPL >= 0 ? "+" : "") + fmtMoney(totalPL);
-  $("totalPL").className      = "val " + plCls;
-  $("totalRate").textContent  = fmtRate(totalRate);
-  $("totalRate").className    = "val " + plCls;
-  $("totalValue").textContent = fmtMoney(totalValue);
-  $("totalCost").textContent  = fmtMoney(totalCostSum);
-}
-
-/* ── 新增股票 ───────────────────────────────────────────────── */
-
-function openAddStock() {
-  $("asCode").value = "";
-  $("asName").value = "";
-  $("asQty").value  = "";
-  $("asCost").value = "";
-  hideSuggest();
-  openModal("addStockModal");
-}
-
-async function submitAddStock() {
-  const code = $("asCode").value.trim().toUpperCase();
-  const name = $("asName").value.trim() || code;
-  const qty  = Number($("asQty").value);
-  const cost = Number($("asCost").value);
-
-  if (!code || !qty || qty <= 0 || !cost || cost <= 0) {
-    alert("請完整填寫：代號、股數（> 0）、付出成本（> 0）");
-    return;
-  }
-
-  // 取得最新股價（如果已抓到）
-  const price = priceMap[code] ? priceMap[code].price : cost / qty;
-
-  const stockId = await dbAdd("stocks", {
-    code, name, qty,
-    totalCost: cost,
-    price,
-    priceAt: Date.now()
-  });
-
-  await dbAdd("transactions", {
-    stockId,
-    type: "init",
-    qty,
-    amount: cost,
-    avgCostBefore: 0,
-    timestamp: Date.now()
-  });
-
-  closeModal("addStockModal");
-  await renderMain();
-}
-
-/* ── 詳情頁 ─────────────────────────────────────────────────── */
-
-let currentStockId = null;
-let currentTradeType = null;
-
-async function openDetail(id) {
-  currentStockId = id;
-  const s = await dbGet("stocks", id);
-  if (!s) return;
-  renderDetailHeader(s);
-  await renderTxList(id);
-  $("mainView").classList.add("hidden");
-  $("detailView").classList.remove("hidden");
-}
-
-function renderDetailHeader(s) {
-  const cv   = s.qty * s.price;
-  const pl   = cv - s.totalCost;
-  const avg  = s.qty > 0 ? s.totalCost / s.qty : 0;
-  const rate = s.totalCost > 0 ? (pl / s.totalCost) * 100 : NaN;
-
-  $("detailTitle").textContent = `${s.name}（${s.code}）`;
-  $("mAvgCost").textContent    = fmtMoneyFull(avg);
-  $("mCurrentValue").textContent = fmtMoneyFull(cv);
-  $("mPrice").textContent      = fmtMoneyFull(s.price);
-  $("mPL").textContent         = (pl >= 0 ? "+" : "") + fmtMoneyFull(pl);
-  $("mPL").className           = "metric-val " + plClass(pl);
-  $("mTotalCost").textContent  = fmtMoneyFull(s.totalCost);
-  $("mRate").textContent       = fmtRate(rate);
-  $("mRate").className         = "metric-val " + plClass(pl);
-}
-
-async function renderTxList(stockId) {
-  const txs = await dbGetByIndex("transactions", "stockId", stockId);
-  txs.sort((a, b) => b.timestamp - a.timestamp);
-
-  const typeLabel = { init: "初次建立", buy: "買入", sell: "賣出" };
-  const html = txs.map(t => {
-    const sign   = t.type === "sell" ? "-" : "+";
-    const color  = t.type === "sell" ? "neg" : "pos";
-    return `<div class="tx-row">
-      <div class="tx-top">
-        <span class="tx-type ${color}">${typeLabel[t.type] || t.type}</span>
-        <span class="tx-qty">${sign}${t.qty} 股</span>
-        <span class="tx-amount">${fmtMoneyFull(t.amount)}</span>
-      </div>
-      <div class="tx-date">${fmtDate(t.timestamp)}</div>
-    </div>`;
-  }).join("") || '<div class="empty-tip">尚無交易紀錄</div>';
-
-  $("txList").innerHTML = html;
-}
-
-function closeDetail() {
-  currentStockId = null;
-  $("detailView").classList.add("hidden");
-  $("mainView").classList.remove("hidden");
-}
-
-async function deleteCurrentStock() {
-  const s = await dbGet("stocks", currentStockId);
-  if (!s) return;
-  if (!confirm(`確定刪除「${s.name}」？交易紀錄也會一併刪除。`)) return;
-  await dbDelete("stocks", currentStockId);
-  await dbDeleteByIndex("transactions", "stockId", currentStockId);
-  closeDetail();
-  await renderMain();
-}
 
 /* ── 買入 / 賣出 ─────────────────────────────────────────────── */
 
-function openTrade(type) {
-  currentTradeType = type;
-  $("tradeModalTitle").textContent = type === "buy" ? "買入" : "賣出";
+let tradeStockId = null;
+let tradeType    = null;
+
+async function openTrade(type, stockId) {
+  tradeStockId = stockId;
+  tradeType    = type;
+  $("tradeTitle").textContent = type === "buy" ? "買入" : "賣出";
 
   if (type === "buy") {
     $("tradeFields").innerHTML = `
-      <input id="tradeQty"    type="number" placeholder="買入股數">
-      <input id="tradeAmount" type="number" placeholder="花費金額（含手續費，元）">
-    `;
+      <input id="tQty" type="number" inputmode="decimal" placeholder="買入股數">
+      <input id="tAmt" type="number" inputmode="decimal" placeholder="花費金額（含手續費，元）">`;
   } else {
+    const s   = await idb.get("stocks", stockId);
+    const avg = s && s.qty > 0 ? (s.totalCost / s.qty).toFixed(2) : 0;
     $("tradeFields").innerHTML = `
-      <input id="tradeQty" type="number" placeholder="賣出股數">
-      <p class="modal-hint" id="tradeHint">計算中…</p>
-    `;
-    // 非同步填入目前均價提示
-    dbGet("stocks", currentStockId).then(s => {
-      if (!s) return;
-      const avg = s.qty > 0 ? (s.totalCost / s.qty).toFixed(2) : 0;
-      const hint = $("tradeHint");
-      if (hint) hint.textContent = `目前均價 NT$ ${avg}，賣出後成本將等比例減少`;
-    });
+      <input id="tQty" type="number" inputmode="decimal" placeholder="賣出股數">
+      <p class="trade-hint">目前均價 NT$ ${avg}，賣後成本等比例減少</p>`;
   }
-
   openModal("tradeModal");
 }
 
 async function submitTrade() {
-  const qty = Number($("tradeQty").value);
+  const qty = Number($("tQty")?.value);
   if (!qty || qty <= 0) { alert("請輸入正確股數"); return; }
 
-  const s = await dbGet("stocks", currentStockId);
+  const s = await idb.get("stocks", tradeStockId);
   if (!s) return;
 
-  if (currentTradeType === "buy") {
-    const amount = Number($("tradeAmount").value);
-    if (!amount || amount <= 0) { alert("請輸入花費金額"); return; }
-
+  if (tradeType === "buy") {
+    const amt = Number($("tAmt")?.value);
+    if (!amt || amt <= 0) { alert("請輸入花費金額"); return; }
     s.qty       += qty;
-    s.totalCost += amount;
-    await dbPut("stocks", s);
-    await dbAdd("transactions", {
-      stockId: s.id, type: "buy",
-      qty, amount,
-      avgCostBefore: s.qty > 0 ? s.totalCost / s.qty : 0,
-      timestamp: Date.now()
+    s.totalCost += amt;
+    await idb.put("stocks", s);
+    await idb.add("transactions", {
+      stockId: s.id, type: "buy", qty, amount: amt, timestamp: Date.now()
     });
 
   } else {
-    // 賣出
-    if (qty > s.qty) { alert(`持有股數只有 ${s.qty} 股，無法賣出 ${qty} 股`); return; }
-    const avgCostBefore = s.qty > 0 ? s.totalCost / s.qty : 0;
-    const costReduction = qty * avgCostBefore;
-
+    if (qty > s.qty) { alert(`持有 ${s.qty} 股，無法賣出 ${qty} 股`); return; }
+    const avg      = s.totalCost / s.qty;
+    const costCut  = qty * avg;
     s.qty       -= qty;
-    s.totalCost -= costReduction;
+    s.totalCost -= costCut;
 
-    if (s.qty === 0) {
-      // 股數歸零：刪除整筆
-      await dbDelete("stocks", s.id);
-      await dbAdd("transactions", {
-        stockId: s.id, type: "sell",
-        qty, amount: costReduction,
-        avgCostBefore,
-        timestamp: Date.now()
-      });
+    await idb.add("transactions", {
+      stockId: s.id, type: "sell", qty, amount: costCut, timestamp: Date.now()
+    });
+
+    if (s.qty <= 0) {
+      await idb.del("stocks", s.id);
       closeModal("tradeModal");
-      closeDetail();
+      if (expandedId === s.id) expandedId = null;
       await renderMain();
       return;
     }
-
-    await dbPut("stocks", s);
-    await dbAdd("transactions", {
-      stockId: s.id, type: "sell",
-      qty, amount: costReduction,
-      avgCostBefore,
-      timestamp: Date.now()
-    });
+    await idb.put("stocks", s);
   }
 
   closeModal("tradeModal");
-  renderDetailHeader(s);
-  await renderTxList(s.id);
+  // 重新渲染展開的面板
+  const panel = $("panel-" + s.id);
+  if (panel && !panel.classList.contains("hidden")) {
+    const fresh = await idb.get("stocks", s.id);
+    if (fresh) {
+      panel.innerHTML = buildDetailHTML(fresh);
+      await loadTxIntoPanel(s.id);
+    }
+  }
+  await renderMain();
+}
+
+/* ── 刪除 ───────────────────────────────────────────────────── */
+
+async function deleteStock(id) {
+  const s = await idb.get("stocks", id);
+  if (!s) return;
+  if (!confirm(`確定刪除「${s.name}」？紀錄一併刪除。`)) return;
+  await idb.del("stocks", id);
+  await idb.delByIndex("transactions", "stockId", id);
+  if (expandedId === id) expandedId = null;
   await renderMain();
 }
 
 /* ── Modal 通用 ─────────────────────────────────────────────── */
 
-function openModal(id) {
-  $(id).classList.remove("hidden");
+function openModal(id)  { $(id).classList.remove("hidden"); }
+function closeModal(id) { $(id).classList.add("hidden"); }
+
+document.querySelectorAll(".modal-overlay").forEach(el =>
+  el.addEventListener("click", e => { if (e.target === el) el.classList.add("hidden"); })
+);
+
+/* ── Service Worker ─────────────────────────────────────────── */
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js")
+    .catch(e => console.warn("SW 注册失败", e));
 }
 
-function closeModal(id) {
-  $(id).classList.add("hidden");
-}
-
-// 點 overlay 背景關閉
-document.querySelectorAll(".modal-overlay").forEach(el => {
-  el.addEventListener("click", e => {
-    if (e.target === el) el.classList.add("hidden");
-  });
-});
-
-/* ── 入口 ───────────────────────────────────────────────────── */
+/* ── 啟動 ───────────────────────────────────────────────────── */
 
 (async () => {
-  // 注册 Service Worker
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(e => console.warn("SW 注册失败", e));
-  }
-
   await dbReady;
-  await renderMain();          // 先用資料庫舊價格渲染，不讓畫面空白
-  await refreshPricesAndRender(); // 再抓最新股價更新
+  await renderMain();           // 先用舊資料呈現，不讓畫面空白
+  priceMap = await fetchPrices();
+  await updateAllPricesInDB();
+  await renderMain();           // 用最新股價重渲染
 })();

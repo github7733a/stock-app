@@ -1,252 +1,259 @@
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
   --blue:   #007aff;
-  --green:  #34c759;
   --red:    #ff3b30;
+  --green:  #34c759;
   --bg:     #f2f2f7;
   --card:   #ffffff;
   --border: #e5e5ea;
   --text:   #1c1c1e;
-  --sub:    #6d6d72;
-  --radius: 12px;
+  --sub:    #8e8e93;
+  --r:      12px;
 }
 
 html, body {
-  margin: 0; padding: 0;
   background: var(--bg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 15px;
   color: var(--text);
   -webkit-text-size-adjust: 100%;
-}
-
-/* ── Views ─────────────────────────────────────────────────── */
-.view {
-  max-width: 480px;
-  margin: 0 auto;
-  padding-bottom: 32px;
+  font-size: 15px;
 }
 
 .hidden { display: none !important; }
 
-/* ── TopBar ─────────────────────────────────────────────────── */
+/* ── TopBar ───────────────────────────────── */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px 8px;
+  padding: 16px 16px 10px;
   position: sticky;
   top: 0;
   background: var(--bg);
-  z-index: 10;
+  z-index: 20;
 }
 
-.topbar-title {
-  font-size: 17px;
-  font-weight: 700;
-  flex: 1;
-  text-align: center;
-}
+.topbar-title { font-size: 18px; font-weight: 700; }
 
-.icon-btn {
+.add-btn {
   width: 36px; height: 36px;
-  border: none; border-radius: 50%;
-  background: var(--blue);
-  color: white;
-  font-size: 20px;
-  line-height: 36px;
-  text-align: center;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-}
-
-.icon-btn.danger { background: var(--red); font-size: 14px; }
-
-/* ── Status bar ─────────────────────────────────────────────── */
-.status-bar {
-  font-size: 11px;
-  color: var(--sub);
-  text-align: center;
-  padding: 2px 16px 8px;
-}
-
-/* ── Table ─────────────────────────────────────────────────── */
-.table-wrap {
-  margin: 0 12px;
-  background: var(--card);
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06);
-}
-
-.table-header {
-  display: grid;
-  grid-template-columns: 1fr 56px 90px;
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--sub);
-  border-bottom: 1px solid var(--border);
-}
-
-.col-r { text-align: right; }
-
-.stock-row {
-  display: grid;
-  grid-template-columns: 1fr 56px 90px;
-  align-items: center;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background .1s;
-}
-
-.stock-row:last-child { border-bottom: none; }
-.stock-row:active { background: #f5f5f7; }
-
-.stock-name {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.s-name { font-weight: 600; font-size: 15px; }
-.s-code { font-size: 11px; color: var(--sub); }
-
-/* ── Summary ─────────────────────────────────────────────────── */
-.summary-row {
-  border-top: 2px solid var(--border);
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.summary-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--sub);
-}
-
-.summary-line .val { font-weight: 700; color: var(--text); }
-.summary-line .sep { color: var(--border); }
-
-/* ── Colors ─────────────────────────────────────────────────── */
-.pos { color: var(--red); }   /* 台股慣例：紅漲 */
-.neg { color: var(--green); } /* 台股慣例：綠跌 */
-
-/* ── Detail: metric grid ─────────────────────────────────────── */
-.card {
-  background: var(--card);
-  border-radius: var(--radius);
-  margin: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06);
-}
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-}
-
-.metric {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-}
-
-.metric:nth-child(even) { border-right: none; }
-.metric:nth-last-child(-n+2) { border-bottom: none; }
-
-.metric-label {
-  font-size: 11px;
-  color: var(--sub);
-  margin-bottom: 4px;
-}
-
-.metric-val {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-/* ── Action buttons ─────────────────────────────────────────── */
-.action-row {
-  display: flex;
-  gap: 10px;
-  padding: 0 12px;
-  margin-bottom: 4px;
-}
-
-.buy-btn, .sell-btn {
-  flex: 1;
-  padding: 12px;
+  border-radius: 50%;
   border: none;
-  border-radius: var(--radius);
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
+  background: var(--blue);
+  color: #fff;
+  font-size: 22px;
+  line-height: 34px;
+  text-align: center;
   cursor: pointer;
+  padding: 0;
 }
 
-.buy-btn  { background: var(--red);   color: white; }
-.sell-btn { background: var(--green); color: white; }
-
-/* ── Transaction list ───────────────────────────────────────── */
-.section-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--sub);
-  padding: 8px 16px 2px;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-}
-
-.tx-list {
-  background: var(--card);
-  border-radius: var(--radius);
-  margin: 0 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06);
-}
-
-.tx-row {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-}
-
-.tx-row:last-child { border-bottom: none; }
-
-.tx-top {
+/* ── Status bar ───────────────────────────── */
+.status-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 0 14px 8px;
   gap: 8px;
 }
 
-.tx-type   { font-weight: 700; font-size: 14px; min-width: 54px; }
-.tx-qty    { font-size: 14px; }
-.tx-amount { margin-left: auto; font-size: 14px; font-weight: 600; }
-.tx-date   { font-size: 11px; color: var(--sub); margin-top: 3px; }
+#priceStatusText {
+  font-size: 11px;
+  color: var(--sub);
+  flex: 1;
+}
 
-/* ── Modal ─────────────────────────────────────────────────── */
+.refresh-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid var(--blue);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--blue);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* ── Main card ────────────────────────────── */
+.main-card {
+  background: var(--card);
+  border-radius: var(--r);
+  margin: 0 12px 24px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0,0,0,.07);
+}
+
+/* ── Table header ─────────────────────────── */
+.table-header {
+  display: grid;
+  grid-template-columns: 1fr 52px 88px 24px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sub);
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.col-r    { text-align: right; }
+.col-chev { text-align: center; }
+
+/* ── Stock row ────────────────────────────── */
+.stock-row {
+  display: grid;
+  grid-template-columns: 1fr 52px 88px 24px;
+  align-items: center;
+  padding: 12px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stock-row:active { background: #f5f5f7; }
+
+.stock-name-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.s-name { font-size: 15px; font-weight: 600; }
+.s-code { font-size: 11px; color: var(--sub); }
+
+.col-chev {
+  font-size: 18px;
+  color: var(--sub);
+  text-align: center;
+  transition: transform .2s;
+  display: inline-block;
+}
+
+.col-chev.open { transform: rotate(90deg); color: var(--blue); }
+
+/* ── Detail panel (accordion) ─────────────── */
+.detail-panel {
+  background: #f7f8fa;
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+}
+
+/* ── Metrics 2×3 grid ─────────────────────── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.metric {
+  background: var(--card);
+  padding: 10px 12px;
+}
+
+.m-label { font-size: 11px; color: var(--sub); margin-bottom: 3px; }
+.m-val   { font-size: 15px; font-weight: 700; }
+
+/* ── Action buttons ───────────────────────── */
+.detail-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.buy-btn, .sell-btn, .del-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.buy-btn  { background: #fff0f0; color: var(--red); }
+.sell-btn { background: #f0fff4; color: var(--green); }
+.del-btn  {
+  background: #f2f2f7;
+  color: var(--sub);
+  padding: 10px 12px;
+}
+
+/* ── Transaction history ──────────────────── */
+.tx-section { }
+.tx-title { font-size: 12px; font-weight: 600; color: var(--sub); margin-bottom: 8px; }
+
+.tx-row {
+  background: var(--card);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.tx-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-type { font-weight: 700; font-size: 13px; min-width: 52px; }
+.tx-qty  { font-size: 13px; }
+.tx-amt  { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--text); }
+.tx-date { font-size: 11px; color: var(--sub); margin-top: 3px; }
+
+.loading-tip { font-size: 12px; color: var(--sub); padding: 4px; }
+
+/* ── Summary block ────────────────────────── */
+.summary-block {
+  border-top: 2px solid var(--border);
+  padding: 10px 14px;
+  background: #fafafa;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.sum-label { color: var(--sub); }
+.sum-val   { font-weight: 700; color: var(--text); }
+
+/* ── Color ────────────────────────────────── */
+.pos { color: var(--red); }    /* 台股紅漲 */
+.neg { color: var(--green); }  /* 台股綠跌 */
+
+/* ── Empty ────────────────────────────────── */
+.empty-tip {
+  text-align: center;
+  color: var(--sub);
+  padding: 28px 16px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ── Modals ───────────────────────────────── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.45);
-  z-index: 200;
+  background: rgba(0,0,0,.4);
+  z-index: 100;
   display: flex;
   align-items: flex-end;
 }
 
-.modal-overlay.hidden { display: none !important; }
-
 .modal {
   background: var(--card);
-  border-radius: var(--radius) var(--radius) 0 0;
-  padding: 0 16px 32px;
+  border-radius: var(--r) var(--r) 0 0;
+  padding: 0 16px 36px;
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
@@ -256,9 +263,22 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 0 12px;
+  padding: 18px 0 14px;
   font-size: 17px;
   font-weight: 700;
+}
+
+.close-btn {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: var(--border);
+  color: var(--sub);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 30px;
+  text-align: center;
+  padding: 0;
 }
 
 .modal input {
@@ -272,46 +292,46 @@ html, body {
   background: var(--bg);
   color: var(--text);
   outline: none;
+  -webkit-appearance: none;
 }
 
 .modal input:focus { border-color: var(--blue); background: #fff; }
 
-.modal button[onclick="submitAddStock()"],
-.modal button[onclick="submitTrade()"],
-.modal #tradeConfirmBtn {
+.primary-btn {
+  display: block;
   width: 100%;
   padding: 14px;
-  margin-top: 12px;
+  margin-top: 14px;
   border: none;
   border-radius: 10px;
   background: var(--blue);
-  color: white;
+  color: #fff;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.modal-hint {
+.trade-hint {
   font-size: 12px;
   color: var(--sub);
-  margin: 4px 0 0;
+  margin: 4px 2px;
 }
 
-/* ── Autocomplete ───────────────────────────────────────────── */
+/* ── Autocomplete ─────────────────────────── */
 .autocomplete-wrap { position: relative; }
 
 .suggest-list {
   display: none;
   position: absolute;
-  top: calc(100% - 4px);
   left: 0; right: 0;
+  top: calc(100% - 6px);
   background: var(--card);
   border: 1px solid var(--border);
   border-top: none;
   border-radius: 0 0 10px 10px;
-  max-height: 200px;
+  max-height: 210px;
   overflow-y: auto;
-  z-index: 300;
+  z-index: 200;
   box-shadow: 0 8px 20px rgba(0,0,0,.12);
 }
 
@@ -327,12 +347,3 @@ html, body {
 .suggest-item:last-child { border-bottom: none; }
 .suggest-item:active { background: var(--bg); }
 .suggest-price { color: var(--blue); font-weight: 600; }
-
-/* ── Empty tip ─────────────────────────────────────────────── */
-.empty-tip {
-  text-align: center;
-  color: var(--sub);
-  padding: 24px 16px;
-  font-size: 14px;
-  line-height: 1.6;
-}

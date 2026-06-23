@@ -14,106 +14,65 @@
 </head>
 <body>
 
-<!-- ===== 主畫面 ===== -->
-<div id="mainView" class="view">
+<div id="mainView">
 
+  <!-- TopBar -->
   <div class="topbar">
     <span class="topbar-title">股票資產管理</span>
-    <button class="icon-btn" onclick="openAddStock()" title="新增股票">＋</button>
+    <button class="add-btn" onclick="openAddStock()">＋</button>
   </div>
 
-  <div id="priceStatusBar" class="status-bar">載入中…</div>
+  <!-- 股價狀態 -->
+  <div class="status-bar">
+    <span id="priceStatusText">載入中…</span>
+    <button class="refresh-btn" onclick="doRefresh()">重新抓取</button>
+  </div>
 
-  <!-- 股票清單表格 -->
-  <div class="table-wrap">
+  <!-- 主表格 -->
+  <div class="main-card">
     <div class="table-header">
       <span>股名</span>
       <span class="col-r">股數</span>
       <span class="col-r">總損益</span>
+      <span class="col-chev"></span>
     </div>
+
     <div id="stockRows"></div>
 
-    <!-- 總計列 -->
-    <div class="summary-row">
-      <div class="summary-line">
-        <span>總預估損益</span><span id="totalPL" class="val">—</span>
-        <span class="sep">|</span>
-        <span>總報酬率</span><span id="totalRate" class="val">—</span>
+    <!-- 統計列 -->
+    <div class="summary-block" id="summaryBlock" style="display:none">
+      <div class="summary-row">
+        <span class="sum-label">總預估損益</span>
+        <span id="totalPL" class="sum-val">—</span>
+        <span class="sum-label">總報酬率</span>
+        <span id="totalRate" class="sum-val">—</span>
       </div>
-      <div class="summary-line">
-        <span>總預估現值</span><span id="totalValue" class="val">—</span>
-        <span class="sep">|</span>
-        <span>總成本</span><span id="totalCost" class="val">—</span>
+      <div class="summary-row">
+        <span class="sum-label">總預估現值</span>
+        <span id="totalValue" class="sum-val">—</span>
+        <span class="sum-label">總成本</span>
+        <span id="totalCost" class="sum-val">—</span>
       </div>
     </div>
   </div>
-
-</div>
-
-<!-- ===== 股票詳情 覆蓋層 ===== -->
-<div id="detailView" class="view hidden">
-
-  <div class="topbar">
-    <button class="icon-btn" onclick="closeDetail()">‹</button>
-    <span class="topbar-title" id="detailTitle">—</span>
-    <button class="icon-btn danger" onclick="deleteCurrentStock()">刪除</button>
-  </div>
-
-  <!-- 指標卡 -->
-  <div class="metric-grid card">
-    <div class="metric">
-      <div class="metric-label">成交均價</div>
-      <div class="metric-val" id="mAvgCost">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">現值</div>
-      <div class="metric-val" id="mCurrentValue">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">市價</div>
-      <div class="metric-val" id="mPrice">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">預估損益</div>
-      <div class="metric-val" id="mPL">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">付出成本</div>
-      <div class="metric-val" id="mTotalCost">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">報酬率</div>
-      <div class="metric-val" id="mRate">—</div>
-    </div>
-  </div>
-
-  <!-- 操作按鈕 -->
-  <div class="action-row">
-    <button class="buy-btn" onclick="openTrade('buy')">買入</button>
-    <button class="sell-btn" onclick="openTrade('sell')">賣出</button>
-  </div>
-
-  <!-- 交易紀錄 -->
-  <div class="section-title">交易紀錄</div>
-  <div id="txList" class="tx-list"></div>
 
 </div>
 
 <!-- ===== 新增股票 Modal ===== -->
-<div id="addStockModal" class="modal-overlay hidden">
+<div id="addModal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
       <span>新增股票</span>
-      <button class="icon-btn" onclick="closeModal('addStockModal')">✕</button>
+      <button class="close-btn" onclick="closeModal('addModal')">✕</button>
     </div>
     <div class="autocomplete-wrap">
-      <input id="asCode" placeholder="股票代號（例：2330）" autocomplete="off">
+      <input id="asCode" placeholder="股票代號（例：2330）" autocomplete="off" inputmode="numeric">
       <div id="asSuggest" class="suggest-list"></div>
     </div>
     <input id="asName" placeholder="股票名稱（自動帶入）">
-    <input id="asQty" type="number" placeholder="初始股數">
-    <input id="asCost" type="number" placeholder="付出成本（含手續費，元）">
-    <button onclick="submitAddStock()">新增</button>
+    <input id="asQty" type="number" inputmode="decimal" placeholder="初始股數">
+    <input id="asCost" type="number" inputmode="decimal" placeholder="付出成本（含手續費，元）">
+    <button class="primary-btn" onclick="submitAddStock()">新增</button>
   </div>
 </div>
 
@@ -121,11 +80,11 @@
 <div id="tradeModal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <span id="tradeModalTitle">買入</span>
-      <button class="icon-btn" onclick="closeModal('tradeModal')">✕</button>
+      <span id="tradeTitle">買入</span>
+      <button class="close-btn" onclick="closeModal('tradeModal')">✕</button>
     </div>
     <div id="tradeFields"></div>
-    <button id="tradeConfirmBtn" onclick="submitTrade()">確認</button>
+    <button class="primary-btn" onclick="submitTrade()">確認</button>
   </div>
 </div>
 

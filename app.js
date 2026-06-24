@@ -168,11 +168,11 @@ function normalizeQuote(item) {
 }
 
 async function fetchPrices() {
-  setStatus("股價更新中…", false);
-  const map = {};
+  setStatus("股價更新中…");
 
-  // 透過 Cloudflare Pages Function（/api/prices）在伺服器端代抓
-  // 避免瀏覽器直接打 TWSE/TPEx 被 CORS 擋住
+  // 每次都直接打 /api/prices，不做前端快取
+  // Cloudflare Function 有 Cache-Control: max-age=1800，CDN 幫擋流量
+  const map = {};
   try {
     const res = await fetch("/api/prices", { cache: "no-cache" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -185,45 +185,24 @@ async function fetchPrices() {
     console.log(`/api/prices: 抓到 ${Object.keys(map).length} 筆`);
   } catch (err) {
     console.warn("/api/prices 失敗:", err.message);
+    setStatus("⚠️ 股價抓取失敗，請確認網路或稍後重試");
+    return {};
   }
 
   const total = Object.keys(map).length;
   if (total === 0) {
-    const cached = loadPriceCache();
-    if (cached) {
-      setStatus(`⚠️ 今日股價無法取得，顯示 ${cached.date} 快取資料`, false);
-      return cached.map;
-    }
-    setStatus("⚠️ 股價抓取失敗", false);
+    setStatus("⚠️ 今日尚無交易資料（假日或尚未開盤）");
     return {};
   }
 
-  savePriceCache(map);
   setStatus(
     `股價已更新 ${new Date().toLocaleTimeString("zh-TW",
-      { hour: "numeric", minute: "2-digit" })}（收盤價，非即時）— 共 ${total} 檔`,
-    false
+      { hour: "numeric", minute: "2-digit" })}（收盤價，非即時）— 共 ${total} 檔`
   );
   return map;
 }
 
-function savePriceCache(map) {
-  try {
-    const d = new Date();
-    const date = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
-    localStorage.setItem("priceCache", JSON.stringify({ date, map }));
-  } catch(e) {}
-}
-
-function loadPriceCache() {
-  try {
-    const raw = localStorage.getItem("priceCache");
-    if (!raw) return null;
-    return JSON.parse(raw);   // { date, map }
-  } catch(e) { return null; }
-}
-
-function setStatus(text, loading) {
+function setStatus(text) {
   $("priceStatusText").textContent = text;
 }
 

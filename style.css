@@ -386,8 +386,10 @@ html, body {
 
 /* 操作按鈕列 */
 .acc-action-row {
-  display: grid; grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px; margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 .acc-action-btn {
   border: none; border-radius: 10px;

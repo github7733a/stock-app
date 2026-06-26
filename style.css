@@ -656,23 +656,23 @@ html, body {
 }
 
 .goal-source-row {
-  border-radius: 10px;
-  padding: 12px 10px;
-  margin-bottom: 6px;
-  border: 1px solid var(--border);
-  background: #fff;
+  display: grid;
+  grid-template-columns: 1fr auto 28px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;           /* 原本12改10 */
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.goal-source-row.selected {
-  border-color: var(--blue);
-  background: #eef3ff;
-}
-
-.goal-source-row.selected .goal-source-name,
-.goal-source-row.selected .goal-source-value {
+.goal-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  line-height: 1;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--blue);
-}
-
-.goal-source-row input {
-  accent-color: var(--blue);
 }

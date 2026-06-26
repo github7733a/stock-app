@@ -681,23 +681,21 @@ async function openGoalModal(goalId) {
 
 function renderGoalSourceList(sources) {
   $("goal-source-list").innerHTML = sources.map(s => {
-    const checked = goalSelectedItems.includes(s.key) ? "checked" : "";
+    const selected = goalSelectedItems.includes(s.key);
 
-    return `<label class="goal-source-row ${checked ? "selected" : ""}">
-      <input type="checkbox" value="${s.key}" ${checked} onchange="toggleGoalSource(this)">
+    return `<div class="goal-source-row ${selected ? "selected" : ""}" onclick="toggleGoalSourceByKey('${s.key}')">
       <span class="goal-source-name">${s.name}</span>
       <span class="goal-source-value ${s.value < 0 ? "neg" : ""}">${fmtMoney(s.value)}</span>
-    </label>`;
+      <span class="goal-check">${selected ? "✓" : ""}</span>
+    </div>`;
   }).join("");
 }
 
-async function toggleGoalSource(el) {
-  const key = el.value;
-
-  if (el.checked) {
-    if (!goalSelectedItems.includes(key)) goalSelectedItems.push(key);
-  } else {
+async function toggleGoalSourceByKey(key) {
+  if (goalSelectedItems.includes(key)) {
     goalSelectedItems = goalSelectedItems.filter(x => x !== key);
+  } else {
+    goalSelectedItems.push(key);
   }
 
   const sources = await getGoalSources();

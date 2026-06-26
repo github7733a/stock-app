@@ -431,7 +431,7 @@ async function renderBalancePage() {
           <span class="acc-bal ${a.balance < 0 ? "neg" : ""}">${fmtMoney(a.balance)}</span>
         </div>
     
-        <span class="drag-handle">≡</span>
+        <button class="drag-handle" type="button">≡</button>
       </div>`;
     } else {
       html += `<div class="acc-row" onclick="openAccountDetail(${a.id})">
@@ -473,19 +473,21 @@ function bindAccountDragEvents() {
 
     handle.addEventListener("pointermove", e => {
       if (!draggingRow) return;
-
+    
+      e.preventDefault();
+    
       const rows = [...document.querySelectorAll(".edit-mode-row:not(.dragging)")];
-
+    
       const target = rows.find(row => {
         const box = row.getBoundingClientRect();
         return e.clientY >= box.top && e.clientY <= box.bottom;
       });
-
+    
       if (!target) return;
-
+    
       const box = target.getBoundingClientRect();
       const after = e.clientY > box.top + box.height / 2;
-
+    
       if (after) {
         target.after(draggingRow);
       } else {

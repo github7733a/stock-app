@@ -51,6 +51,7 @@ function switchTab(tab) {
   if (tab==="stocks")  renderStockPage("stocks");
   if (tab==="pledge")  renderStockPage("pledge");
   if (tab==="balance") renderBalancePage();
+  if (tab==="goals") renderGoalPage();
 }
 
 /* ── Modal / Overlay ────────────────────────────────────────── */
@@ -502,6 +503,12 @@ const financeReady = openDB("financeDB", db => {
   }
 }).then(d => { financeDb = d; });
 
+let goalDb;
+const goalReady = openDB("goalDB", db => {
+  if (!db.objectStoreNames.contains("goals"))
+    db.createObjectStore("goals", { keyPath: "id", autoIncrement: true });
+}).then(d => { goalDb = d; });
+
 /* ── 共用輔助 ──────────────────────────────────────────────── */
 function fmtMoney(n) {           // $X,XXX 或 ($X,XXX)
   const v = Math.round(Number(n) || 0);
@@ -565,6 +572,180 @@ async function renderBalancePage() {
   }
   $("accountRows").innerHTML = html || '<div class="empty-tip">尚未新增帳戶<br>點右上角「＋」新增</div>';
   if (balanceEditMode) bindAccountDragEvents();
+}
+
+let editingGoalId = null;
+let goalSelectedItems = [];
+
+async function getGoalSources() {
+  await Promise.all([financeReady, dbsReady]);
+
+  const accounts = await idb.all(financeDb, "accounts");
+  accounts.sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id));
+
+  const stockVal = await getStockTotal("stocks");
+  const pledgeVal = await getStockTotal("pledge");
+
+  const sources = accounts.map(a => ({
+    key: `account:${a.id}`,
+    name: a.name,
+    value: Number(a.balance) || 0
+  }));
+
+  sources.push({
+    key: "stock:stocks",
+    name: "股票市值",
+    value: stockVal
+  });
+
+  sources.push({
+    key: "stock:pledge",
+    name: "質押股票市值",
+    value: pledgeVal
+  });
+
+  return sources;
+}
+
+async function calcGoalCurrent(selectedItems) {
+  const sources = await getGoalSources();
+  return sources
+    .filter(s => selectedItems.includes(s.key))
+    .reduce((sum, s) => sum + s.value, 0);
+}
+
+async function renderGoalPage() {
+  await goalReady;
+
+  const goals = await idb.all(goalDb, "goals");
+
+  if (!goals.length) {
+    $("goalRows").innerHTML = '<div class="empty-tip">尚未新增目標<br>點右上角「新增」建立</div>';
+    return;
+  }
+
+  let html = "";
+
+  for (const g of goals) {
+    const current = await calcGoalCurrent(g.selectedItems || []);
+    const target = Number(g.targetAmount) || 0;
+
+    html += `<div class="goal-row" onclick="openGoalModal(${g.id})">
+      <div class="goal-name">${g.name}</div>
+      <div class="goal-values">
+        <div class="${current < 0 ? "neg" : ""}">${fmtMoney(current)}</div>
+        <div class="goal-target">${fmtMoney(target)}</div>
+      </div>
+    </div>`;
+  }
+
+  $("goalRows").innerHTML = html;
+}
+
+async function openGoalModal(goalId) {
+  editingGoalId = goalId || null;
+
+  const sources = await getGoalSources();
+
+  if (editingGoalId) {
+    const g = await idb.get(goalDb, "goals", editingGoalId);
+    if (!g) return;
+
+    $("goal-modal-title").textContent = "編輯目標";
+    $("goal-name").value = g.name;
+    $("goal-target").value = g.targetAmount < 0
+      ? `(${Math.abs(g.targetAmount)})`
+      : String(g.targetAmount);
+
+    goalSelectedItems = [...(g.selectedItems || [])];
+    $("goal-delete-btn").classList.remove("hidden");
+  } else {
+    $("goal-modal-title").textContent = "新增目標";
+    $("goal-name").value = "";
+    $("goal-target").value = "";
+
+    // 預設全選
+    goalSelectedItems = sources.map(s => s.key);
+    $("goal-delete-btn").classList.add("hidden");
+  }
+
+  renderGoalSourceList(sources);
+  await updateGoalPreview();
+
+  openModal("modal-goal");
+}
+
+function renderGoalSourceList(sources) {
+  $("goal-source-list").innerHTML = sources.map(s => {
+    const checked = goalSelectedItems.includes(s.key) ? "checked" : "";
+
+    return `<label class="goal-source-row">
+      <input type="checkbox" value="${s.key}" ${checked} onchange="toggleGoalSource(this)">
+      <span class="goal-source-name">${s.name}</span>
+      <span class="goal-source-value ${s.value < 0 ? "neg" : ""}">${fmtMoney(s.value)}</span>
+    </label>`;
+  }).join("");
+}
+
+async function toggleGoalSource(el) {
+  const key = el.value;
+
+  if (el.checked) {
+    if (!goalSelectedItems.includes(key)) goalSelectedItems.push(key);
+  } else {
+    goalSelectedItems = goalSelectedItems.filter(x => x !== key);
+  }
+
+  await updateGoalPreview();
+}
+
+async function updateGoalPreview() {
+  const current = await calcGoalCurrent(goalSelectedItems);
+  $("goal-current-preview").textContent = fmtMoney(current);
+  $("goal-current-preview").className = "goal-current-value " + (current < 0 ? "neg" : "");
+}
+
+async function submitGoal() {
+  const name = $("goal-name").value.trim();
+  const targetAmount = parseMoneyInput($("goal-target").value);
+
+  if (!name) {
+    alert("請輸入目標名稱");
+    return;
+  }
+
+  const rec = {
+    name,
+    targetAmount,
+    selectedItems: [...goalSelectedItems],
+    updatedAt: Date.now()
+  };
+
+  if (editingGoalId) {
+    rec.id = editingGoalId;
+    const old = await idb.get(goalDb, "goals", editingGoalId);
+    rec.createdAt = old?.createdAt || Date.now();
+    await idb.put(goalDb, "goals", rec);
+  } else {
+    rec.createdAt = Date.now();
+    await idb.add(goalDb, "goals", rec);
+  }
+
+  closeModal("modal-goal");
+  renderGoalPage();
+}
+
+async function deleteGoal() {
+  if (!editingGoalId) return;
+
+  const g = await idb.get(goalDb, "goals", editingGoalId);
+  if (!g) return;
+
+  if (!confirm(`確定刪除目標「${g.name}」？`)) return;
+
+  await idb.del(goalDb, "goals", editingGoalId);
+  closeModal("modal-goal");
+  renderGoalPage();
 }
 
 let draggingRow = null;
@@ -1136,7 +1317,7 @@ async function deleteFinanceTx(txId) {
   if("serviceWorker" in navigator)
     navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("SW:",e));
 
-  await Promise.all([dbsReady, financeReady]);
+  await Promise.all([dbsReady, financeReady, goalReady]);
   bindQtyFormat($("asQty")); bindQtyFormat($("etQty"));
 
   switchTab("stocks");

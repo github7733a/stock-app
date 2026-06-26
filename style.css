@@ -565,3 +565,92 @@ html, body {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
+
+.goal-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.goal-row:last-child {
+  border-bottom: none;
+}
+
+.goal-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.goal-values {
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.goal-target {
+  color: var(--sub);
+  font-weight: 600;
+}
+
+.goal-current-box {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 10px 0 14px;
+}
+
+.goal-current-label {
+  font-size: 12px;
+  color: var(--sub);
+  margin-bottom: 4px;
+}
+
+.goal-current-value {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.goal-source-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.goal-source-row:last-child {
+  border-bottom: none;
+}
+
+.goal-source-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.goal-source-name {
+  font-weight: 500;
+}
+
+.goal-source-value {
+  font-weight: 700;
+}
+
+.danger-full-btn {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #fff0f0;
+  color: var(--red);
+  font-size: 15px;
+  font-weight: 700;
+}

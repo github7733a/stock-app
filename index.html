@@ -14,10 +14,18 @@
 </head>
 <body>
 
-<!-- ══ PAGE: 目標（空殼）══ -->
+<!-- ══ PAGE: 目標 ══ -->
 <div id="page-goals" class="page hidden">
-  <div class="topbar"><span class="topbar-title">目標</span></div>
-  <div class="empty-tip" style="margin-top:80px">開發中</div>
+  <div class="topbar">
+    <span class="topbar-title">目標</span>
+    <button class="ghost-btn-sm" onclick="openGoalModal()">新增</button>
+  </div>
+
+  <div class="main-card">
+    <div id="goalRows">
+      <div class="empty-tip">尚未新增目標<br>點右上角「新增」建立</div>
+    </div>
+  </div>
 </div>
 
 <!-- ══ PAGE: 餘額 ══ -->
@@ -274,6 +282,30 @@
     <input id="edit-tx-note" placeholder="備註（選填）">
 
     <button class="primary-btn" onclick="submitEditFinanceTx()">儲存</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: 新增 / 編輯目標 ══ -->
+<div id="modal-goal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="goal-modal-title">新增目標</span>
+      <button class="close-btn" onclick="closeModal('modal-goal')">✕</button>
+    </div>
+
+    <input id="goal-name" placeholder="目標名稱，例如：存100萬">
+    <input id="goal-target" type="text" inputmode="decimal" placeholder="目標值，可輸入 1000000 或 (100000)">
+
+    <div class="goal-current-box">
+      <div class="goal-current-label">目前狀態</div>
+      <div class="goal-current-value" id="goal-current-preview">$0</div>
+    </div>
+
+    <div class="section-label">計算來源</div>
+    <div id="goal-source-list"></div>
+
+    <button class="primary-btn" onclick="submitGoal()">儲存</button>
+    <button class="danger-full-btn hidden" id="goal-delete-btn" onclick="deleteGoal()">刪除目標</button>
   </div>
 </div>
 

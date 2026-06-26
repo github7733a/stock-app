@@ -16,18 +16,49 @@
 
 <!-- ══ PAGE: 目標（空殼）══ -->
 <div id="page-goals" class="page hidden">
-  <div class="topbar">
-    <span class="topbar-title">目標</span>
-  </div>
-  <div class="empty-tip" style="margin-top:60px">開發中</div>
+  <div class="topbar"><span class="topbar-title">目標</span></div>
+  <div class="empty-tip" style="margin-top:80px">開發中</div>
 </div>
 
-<!-- ══ PAGE: 餘額（空殼）══ -->
+<!-- ══ PAGE: 餘額 ══ -->
 <div id="page-balance" class="page hidden">
   <div class="topbar">
     <span class="topbar-title">餘額</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="ghost-btn-sm" onclick="openAddTx(null)">記帳</button>
+      <button class="add-btn" onclick="openAddAccount()">＋</button>
+    </div>
   </div>
-  <div class="empty-tip" style="margin-top:60px">開發中</div>
+
+  <div class="nw-card">
+    <div class="nw-label">淨資產</div>
+    <div class="nw-value" id="nwValue">$0</div>
+  </div>
+
+  <div class="main-card">
+    <div id="accountRows"><div class="empty-tip">尚未新增帳戶<br>點右上角「＋」新增</div></div>
+  </div>
+</div>
+
+<!-- ══ OVERLAY: 帳戶明細 ══ -->
+<div id="overlay-account" class="overlay hidden">
+  <div class="overlay-topbar">
+    <button class="back-btn" onclick="closeAccountDetail()">‹ 返回</button>
+    <span id="ov-acc-name" class="topbar-title">帳戶</span>
+    <button class="danger-text-btn" onclick="deleteCurrentAccount()">刪除</button>
+  </div>
+  <div class="overlay-body">
+    <div class="acc-balance-header">
+      <div class="acc-balance-val" id="ov-acc-balance">$0</div>
+    </div>
+    <div class="acc-action-row">
+      <button class="acc-action-btn" onclick="openAddTx('income')">收入</button>
+      <button class="acc-action-btn" onclick="openAddTx('expense')">支出</button>
+      <button class="acc-action-btn" onclick="openAddTx('transfer')">轉帳</button>
+    </div>
+    <div class="section-label">交易紀錄</div>
+    <div id="acc-tx-list"></div>
+  </div>
 </div>
 
 <!-- ══ PAGE: 股票 ══ -->
@@ -42,10 +73,8 @@
   </div>
   <div class="main-card">
     <div class="table-header">
-      <span>股名</span>
-      <span class="col-r">股數</span>
-      <span class="col-r">總損益</span>
-      <span class="col-chev"></span>
+      <span>股名</span><span class="col-r">股數</span>
+      <span class="col-r">總損益</span><span class="col-chev"></span>
     </div>
     <div id="stocks-rows"></div>
     <div class="summary-block hidden" id="stocks-summary">
@@ -69,16 +98,11 @@
     <span class="topbar-title">質押股票</span>
     <button class="add-btn" onclick="openAddStock('pledge')">＋</button>
   </div>
-  <!-- 質押頁不顯示股價狀態，共用股票頁抓到的 priceMap -->
-  <div class="status-bar">
-    <span id="pledgeStatusText">—</span>
-  </div>
+  <div class="status-bar"><span id="pledgeStatusText">—</span></div>
   <div class="main-card">
     <div class="table-header">
-      <span>股名</span>
-      <span class="col-r">股數</span>
-      <span class="col-r">總損益</span>
-      <span class="col-chev"></span>
+      <span>股名</span><span class="col-r">股數</span>
+      <span class="col-r">總損益</span><span class="col-chev"></span>
     </div>
     <div id="pledge-rows"></div>
     <div class="summary-block hidden" id="pledge-summary">
@@ -96,9 +120,28 @@
   </div>
 </div>
 
+<!-- ══ OVERLAY: 帳戶明細 ══ -->
+<div id="overlay-account" class="overlay hidden">
+  <div class="overlay-topbar">
+    <button class="back-btn" onclick="closeAccountDetail()">‹ 返回</button>
+    <span class="overlay-title" id="accOverlayTitle">帳戶</span>
+    <button class="del-text-btn" onclick="deleteCurrentAccount()">刪除</button>
+  </div>
+  <div class="overlay-body">
+    <div class="acc-balance-big" id="accBalanceBig">$0</div>
+    <div class="acc-action-row">
+      <button class="acc-action-btn income-btn" onclick="openAddTx('income')">收入</button>
+      <button class="acc-action-btn expense-btn" onclick="openAddTx('expense')">費用</button>
+      <button class="acc-action-btn transfer-btn" onclick="openAddTx('transfer')">轉帳</button>
+    </div>
+    <div class="section-title">交易紀錄</div>
+    <div id="accTxList"></div>
+  </div>
+</div>
+
 <!-- ══ TAB BAR ══ -->
 <nav class="tab-bar">
-  <button class="tab" data-tab="goals"   onclick="switchTab('goals')">
+  <button class="tab" data-tab="goals" onclick="switchTab('goals')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
     <span>目標</span>
   </button>
@@ -106,11 +149,11 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
     <span>餘額</span>
   </button>
-  <button class="tab" data-tab="stocks"  onclick="switchTab('stocks')">
+  <button class="tab" data-tab="stocks" onclick="switchTab('stocks')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,17 9,11 13,15 21,7"/><polyline points="14,7 21,7 21,14"/></svg>
     <span>股票</span>
   </button>
-  <button class="tab" data-tab="pledge"  onclick="switchTab('pledge')">
+  <button class="tab" data-tab="pledge" onclick="switchTab('pledge')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
     <span>質押</span>
   </button>
@@ -146,7 +189,7 @@
   </div>
 </div>
 
-<!-- ══ MODAL: 修改交易紀錄 ══ -->
+<!-- ══ MODAL: 修改股票交易紀錄 ══ -->
 <div id="modal-editTx" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
@@ -157,6 +200,80 @@
     <input id="etAmt" type="number" inputmode="decimal" placeholder="金額（元）">
     <p id="etHint" class="trade-hint"></p>
     <button class="primary-btn" onclick="submitEditTx()">儲存</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: 新增帳戶 ══ -->
+<div id="modal-addAccount" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span>新增帳戶</span>
+      <button class="close-btn" onclick="closeModal('modal-addAccount')">✕</button>
+    </div>
+    <input id="accName" placeholder="帳戶名稱（例：銀行存款、房貸）">
+    <div class="type-toggle">
+      <button class="type-btn active" id="typeAsset"     onclick="selectAccType('asset')">資產</button>
+      <button class="type-btn"        id="typeLiability" onclick="selectAccType('liability')">負債</button>
+    </div>
+    <input id="accInitBal" type="number" inputmode="decimal" placeholder="初始餘額（正數）">
+    <button class="primary-btn" onclick="submitAddAccount()">新增</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: 記帳（收入/費用/轉帳）══ -->
+<div id="modal-addTx" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="addTx-title">收入</span>
+      <button class="close-btn" onclick="closeModal('modal-addTx')">✕</button>
+    </div>
+    <input id="txAmount" type="number" inputmode="decimal" placeholder="金額">
+    <!-- 轉帳才顯示 -->
+    <div id="txToRow" class="hidden">
+      <div class="select-label">轉至帳戶</div>
+      <select id="txToAccount" class="modal-select"></select>
+    </div>
+    <input id="txNote" placeholder="備註（選填）">
+    <button class="primary-btn" onclick="submitAddTx()">儲存</button>
+  </div>
+</div>
+
+
+<!-- ══ MODAL: 新增帳戶 ══ -->
+<div id="modal-addAccount" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span>新增帳戶</span>
+      <button class="close-btn" onclick="closeModal('modal-addAccount')">✕</button>
+    </div>
+    <input id="acc-name" placeholder="帳戶名稱（例：銀行存款、房貸）">
+    <div class="type-selector">
+      <button class="type-btn active" id="acc-type-asset"    onclick="selectAccType('asset')">資產</button>
+      <button class="type-btn"        id="acc-type-liability" onclick="selectAccType('liability')">負債</button>
+    </div>
+    <input id="acc-init" type="number" inputmode="decimal" placeholder="初始餘額（正數）">
+    <button class="primary-btn" onclick="submitAddAccount()">新增</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: 記帳（收入/支出/轉帳）══ -->
+<div id="modal-addTx" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="addTx-title">記帳</span>
+      <button class="close-btn" onclick="closeModal('modal-addTx')">✕</button>
+    </div>
+    <div class="type-selector" id="tx-type-row">
+      <button class="type-btn active" onclick="selectTxType('income')">收入</button>
+      <button class="type-btn"        onclick="selectTxType('expense')">支出</button>
+      <button class="type-btn"        onclick="selectTxType('transfer')">轉帳</button>
+    </div>
+    <select id="tx-from-acc" class="modal-select"></select>
+    <select id="tx-to-acc"   class="modal-select hidden"></select>
+    <select id="tx-category" class="modal-select"></select>
+    <input id="tx-amount" type="number" inputmode="decimal" placeholder="金額">
+    <input id="tx-note"   placeholder="備註（選填）">
+    <button class="primary-btn" onclick="submitAddTx()">儲存</button>
   </div>
 </div>
 

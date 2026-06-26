@@ -293,3 +293,144 @@ html, body {
 .suggest-item:last-child { border-bottom: none; }
 .suggest-item:active { background: var(--bg); }
 .suggest-price { color: var(--blue); font-weight: 600; }
+
+/* ══ 餘額頁 ═══════════════════════════════════════════════ */
+
+/* 淨資產卡片 */
+.nw-card {
+  background: linear-gradient(135deg, #007aff, #5856d6);
+  color: white;
+  border-radius: var(--r);
+  margin: 0 12px 12px;
+  padding: 20px 20px 22px;
+  box-shadow: 0 2px 12px rgba(0,122,255,.25);
+}
+.nw-label { font-size: 13px; opacity: .85; margin-bottom: 6px; }
+.nw-value { font-size: 34px; font-weight: 700; }
+.nw-value.neg { color: #ffd0ce; }
+
+/* 帳戶列表 */
+.acc-row {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.acc-row:last-child { border-bottom: none; }
+.acc-row:active { background: #f5f5f7; }
+.readonly-row { cursor: default; opacity: .75; }
+.readonly-row:active { background: transparent; }
+
+.acc-name { font-size: 15px; font-weight: 500; }
+.acc-bal  { font-size: 15px; font-weight: 700; }
+.acc-bal.neg { color: var(--green); }  /* 負債用綠色（欠債） */
+
+.ro-tag {
+  font-size: 10px; background: #e5e5ea;
+  color: var(--sub); border-radius: 4px;
+  padding: 1px 5px; margin-left: 4px;
+}
+
+/* 記帳按鈕（topbar） */
+.ghost-btn-sm {
+  font-size: 13px; padding: 5px 12px;
+  border: 1px solid var(--blue); border-radius: 8px;
+  background: transparent; color: var(--blue); cursor: pointer;
+}
+
+/* ══ 帳戶明細 Overlay ═══════════════════════════════════════ */
+.overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 90;
+  display: flex; flex-direction: column;
+  max-width: 480px; margin: 0 auto;
+}
+.overlay-topbar {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(255,255,255,.92);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.back-btn {
+  background: none; border: none;
+  color: var(--blue); font-size: 16px;
+  font-weight: 500; padding: 4px 0;
+  cursor: pointer; min-width: 60px;
+}
+.danger-text-btn {
+  background: none; border: none;
+  color: var(--red); font-size: 14px;
+  font-weight: 500; padding: 4px 0;
+  cursor: pointer; min-width: 40px;
+  text-align: right;
+}
+.overlay-body {
+  flex: 1; overflow-y: auto;
+  padding: 16px 12px;
+  padding-bottom: calc(var(--tab-h) + 16px);
+}
+
+/* 帳戶餘額大字 */
+.acc-balance-header { text-align: center; padding: 16px 0 20px; }
+.acc-balance-val {
+  font-size: 38px; font-weight: 700; color: var(--text);
+}
+.acc-balance-val.neg { color: var(--green); }
+
+/* 操作按鈕列 */
+.acc-action-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin-bottom: 20px;
+}
+.acc-action-btn {
+  border: none; border-radius: 10px;
+  padding: 12px 0; font-size: 15px;
+  font-weight: 600; cursor: pointer;
+  background: #eef3ff; color: var(--blue);
+}
+
+/* 標籤 */
+.section-label {
+  font-size: 12px; font-weight: 600;
+  color: var(--sub); margin-bottom: 8px;
+  text-transform: uppercase; letter-spacing: .4px;
+}
+
+/* ══ Modal 擴充 ═════════════════════════════════════════════ */
+
+/* 類型選擇器 */
+.type-selector {
+  display: flex; gap: 8px; margin: 8px 0;
+}
+.type-btn {
+  flex: 1; padding: 10px 0; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--bg);
+  color: var(--sub); font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}
+.type-btn.active {
+  background: var(--blue); color: white; border-color: var(--blue);
+}
+
+/* Select 下拉 */
+.modal-select {
+  display: block; width: 100%;
+  padding: 13px 14px; margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px; font-size: 16px;
+  background: var(--bg); color: var(--text);
+  outline: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  padding-right: 36px;
+}
+.modal-select:focus { border-color: var(--blue); }

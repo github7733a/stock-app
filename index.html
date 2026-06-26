@@ -120,25 +120,6 @@
   </div>
 </div>
 
-<!-- ══ OVERLAY: 帳戶明細 ══ -->
-<div id="overlay-account" class="overlay hidden">
-  <div class="overlay-topbar">
-    <button class="back-btn" onclick="closeAccountDetail()">‹ 返回</button>
-    <span class="overlay-title" id="accOverlayTitle">帳戶</span>
-    <button class="del-text-btn" onclick="deleteCurrentAccount()">刪除</button>
-  </div>
-  <div class="overlay-body">
-    <div class="acc-balance-big" id="accBalanceBig">$0</div>
-    <div class="acc-action-row">
-      <button class="acc-action-btn income-btn" onclick="openAddTx('income')">收入</button>
-      <button class="acc-action-btn expense-btn" onclick="openAddTx('expense')">費用</button>
-      <button class="acc-action-btn transfer-btn" onclick="openAddTx('transfer')">轉帳</button>
-    </div>
-    <div class="section-title">交易紀錄</div>
-    <div id="accTxList"></div>
-  </div>
-</div>
-
 <!-- ══ TAB BAR ══ -->
 <nav class="tab-bar">
   <button class="tab" data-tab="goals" onclick="switchTab('goals')">
@@ -210,48 +191,15 @@
       <span>新增帳戶</span>
       <button class="close-btn" onclick="closeModal('modal-addAccount')">✕</button>
     </div>
-    <input id="accName" placeholder="帳戶名稱（例：銀行存款、房貸）">
-    <div class="type-toggle">
-      <button class="type-btn active" id="typeAsset"     onclick="selectAccType('asset')">資產</button>
-      <button class="type-btn"        id="typeLiability" onclick="selectAccType('liability')">負債</button>
-    </div>
-    <input id="accInitBal" type="number" inputmode="decimal" placeholder="初始餘額（正數）">
-    <button class="primary-btn" onclick="submitAddAccount()">新增</button>
-  </div>
-</div>
-
-<!-- ══ MODAL: 記帳（收入/費用/轉帳）══ -->
-<div id="modal-addTx" class="modal-overlay hidden">
-  <div class="modal">
-    <div class="modal-header">
-      <span id="addTx-title">收入</span>
-      <button class="close-btn" onclick="closeModal('modal-addTx')">✕</button>
-    </div>
-    <input id="txAmount" type="number" inputmode="decimal" placeholder="金額">
-    <!-- 轉帳才顯示 -->
-    <div id="txToRow" class="hidden">
-      <div class="select-label">轉至帳戶</div>
-      <select id="txToAccount" class="modal-select"></select>
-    </div>
-    <input id="txNote" placeholder="備註（選填）">
-    <button class="primary-btn" onclick="submitAddTx()">儲存</button>
-  </div>
-</div>
-
-
-<!-- ══ MODAL: 新增帳戶 ══ -->
-<div id="modal-addAccount" class="modal-overlay hidden">
-  <div class="modal">
-    <div class="modal-header">
-      <span>新增帳戶</span>
-      <button class="close-btn" onclick="closeModal('modal-addAccount')">✕</button>
-    </div>
     <input id="acc-name" placeholder="帳戶名稱（例：銀行存款、房貸）">
     <div class="type-selector">
       <button class="type-btn active" id="acc-type-asset"    onclick="selectAccType('asset')">資產</button>
       <button class="type-btn"        id="acc-type-liability" onclick="selectAccType('liability')">負債</button>
     </div>
-    <input id="acc-init" type="number" inputmode="decimal" placeholder="初始餘額（正數）">
+    <div class="money-input-row">
+      <input id="acc-init" type="text" inputmode="decimal" placeholder="初始餘額，可輸入 1000 或 (1000)">
+      <button type="button" class="minus-toggle-btn" onclick="toggleAccInitNegative()">−</button>
+    </div>
     <button class="primary-btn" onclick="submitAddAccount()">新增</button>
   </div>
 </div>

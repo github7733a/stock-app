@@ -434,3 +434,24 @@ html, body {
   padding-right: 36px;
 }
 .modal-select:focus { border-color: var(--blue); }
+
+.money-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.money-input-row input {
+  flex: 1;
+}
+
+.minus-toggle-btn {
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 10px;
+  background: var(--border);
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+}

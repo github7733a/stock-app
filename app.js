@@ -423,7 +423,7 @@ async function renderBalancePage() {
   let html = "";
   accounts.forEach(a => {
     if (balanceEditMode) {
-      html += `<div class="acc-row edit-mode-row" draggable="true" data-id="${a.id}">
+      html += `<div class="acc-row edit-mode-row" data-id="${a.id}">
         <button class="acc-delete-btn" onclick="event.stopPropagation(); deleteAccountFromList(${a.id})">✕</button>
     
         <div class="acc-edit-main" onclick="event.stopPropagation(); openEditAccountBasic(${a.id})">
@@ -456,35 +456,59 @@ async function renderBalancePage() {
   if (balanceEditMode) bindAccountDragEvents();
 }
 
-let draggedAccountId = null;
+let draggingRow = null;
 
 function bindAccountDragEvents() {
-  document.querySelectorAll(".edit-mode-row").forEach(row => {
-    row.addEventListener("dragstart", e => {
-      draggedAccountId = Number(row.dataset.id);
+  document.querySelectorAll(".edit-mode-row .drag-handle").forEach(handle => {
+    handle.addEventListener("pointerdown", e => {
+      const row = handle.closest(".edit-mode-row");
+      if (!row) return;
+
+      draggingRow = row;
       row.classList.add("dragging");
-    });
 
-    row.addEventListener("dragend", async e => {
-      row.classList.remove("dragging");
-      draggedAccountId = null;
-      await saveAccountSortOrder();
-    });
-
-    row.addEventListener("dragover", e => {
+      handle.setPointerCapture(e.pointerId);
       e.preventDefault();
+    });
 
-      const dragging = document.querySelector(".edit-mode-row.dragging");
-      if (!dragging || dragging === row) return;
+    handle.addEventListener("pointermove", e => {
+      if (!draggingRow) return;
 
-      const box = row.getBoundingClientRect();
+      const rows = [...document.querySelectorAll(".edit-mode-row:not(.dragging)")];
+
+      const target = rows.find(row => {
+        const box = row.getBoundingClientRect();
+        return e.clientY >= box.top && e.clientY <= box.bottom;
+      });
+
+      if (!target) return;
+
+      const box = target.getBoundingClientRect();
       const after = e.clientY > box.top + box.height / 2;
 
       if (after) {
-        row.after(dragging);
+        target.after(draggingRow);
       } else {
-        row.before(dragging);
+        target.before(draggingRow);
       }
+    });
+
+    handle.addEventListener("pointerup", async e => {
+      if (!draggingRow) return;
+
+      draggingRow.classList.remove("dragging");
+      draggingRow = null;
+
+      await saveAccountSortOrder();
+    });
+
+    handle.addEventListener("pointercancel", async e => {
+      if (!draggingRow) return;
+
+      draggingRow.classList.remove("dragging");
+      draggingRow = null;
+
+      await saveAccountSortOrder();
     });
   });
 }
@@ -495,6 +519,7 @@ async function saveAccountSortOrder() {
   for (let i = 0; i < rows.length; i++) {
     const id = Number(rows[i].dataset.id);
     const acc = await idb.get(financeDb, "accounts", id);
+
     if (acc) {
       acc.sortOrder = i + 1;
       await idb.put(financeDb, "accounts", acc);

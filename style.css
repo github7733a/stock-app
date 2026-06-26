@@ -534,3 +534,32 @@ html, body {
   cursor: grab;
   touch-action: none;
 }
+
+.stock-edit-row {
+  grid-template-columns: 36px 1fr 56px 90px 36px;
+}
+
+.stock-edit-item.dragging {
+  opacity: .45;
+  background: #f2f2f7;
+}
+
+.stock-edit-row .drag-handle {
+  border: none;
+  background: transparent;
+  color: var(--sub);
+  font-size: 22px;
+  font-weight: 700;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.stock-edit-row,
+.stock-edit-row * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}

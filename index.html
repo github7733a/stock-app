@@ -65,11 +65,13 @@
 <div id="page-stocks" class="page hidden">
   <div class="topbar">
     <span class="topbar-title">股票</span>
-    <button class="add-btn" onclick="openAddStock('stocks')">＋</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="ghost-btn-sm" id="stocks-add-btn" onclick="openAddStock('stocks')" style="display:none">＋</button>
+      <button class="ghost-btn-sm" id="stocks-edit-btn" onclick="toggleStockEdit('stocks')">編輯</button>
+    </div>
   </div>
   <div class="status-bar">
     <span id="priceStatusText">載入中…</span>
-    <button class="refresh-btn" onclick="doRefresh()">重新抓取</button>
   </div>
   <div class="main-card">
     <div class="table-header">
@@ -96,7 +98,10 @@
 <div id="page-pledge" class="page hidden">
   <div class="topbar">
     <span class="topbar-title">質押股票</span>
-    <button class="add-btn" onclick="openAddStock('pledge')">＋</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="ghost-btn-sm" id="pledge-add-btn" onclick="openAddStock('pledge')" style="display:none">＋</button>
+      <button class="ghost-btn-sm" id="pledge-edit-btn" onclick="toggleStockEdit('pledge')">編輯</button>
+    </div>
   </div>
   <div class="status-bar"><span id="pledgeStatusText">—</span></div>
   <div class="main-card">

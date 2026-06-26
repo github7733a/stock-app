@@ -188,10 +188,28 @@ document.addEventListener("click",e=>{if(!e.target.closest(".autocomplete-wrap")
 
 /* ── 股票/質押共用渲染 ──────────────────────────────────────── */
 const expanded={stocks:null,pledge:null};
+const stockEditMode = {
+  stocks: false,
+  pledge: false
+};
+
+function toggleStockEdit(ctx) {
+  stockEditMode[ctx] = !stockEditMode[ctx];
+
+  $(`${ctx}-edit-btn`).textContent = stockEditMode[ctx] ? "完成" : "編輯";
+  $(`${ctx}-add-btn`).style.display = stockEditMode[ctx] ? "" : "none";
+
+  if (stockEditMode[ctx]) {
+    expanded[ctx] = null;
+  }
+
+  renderStockPage(ctx);
+}
 
 async function renderStockPage(ctx) {
   const db=getDb(ctx); if(!db) return;
   const stocks=await idb.all(db,"stocks");
+  stocks.sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id));
   const rowsEl=$(`${ctx}-rows`), sumEl=$(`${ctx}-summary`);
   let html="",tv=0,tc=0;
   if(!stocks.length){
@@ -202,15 +220,32 @@ async function renderStockPage(ctx) {
       const cv=s.qty*s.price,pl=cv-s.totalCost;
       tv+=cv;tc+=s.totalCost;
       const isOpen=expanded[ctx]===s.id;
-      html+=`<div class="stock-item" id="${ctx}-item-${s.id}">
-        <div class="stock-row" onclick="toggleDetail(${s.id},'${ctx}')">
-          <div class="stock-name-col"><span class="s-name">${s.name||s.code}</span><span class="s-code">${s.code}</span></div>
-          <span class="col-r">${fmtQty(s.qty)}</span>
-          <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
-          <span class="col-chev ${isOpen?"open":""}">›</span>
-        </div>
-        <div class="detail-panel ${isOpen?"":"hidden"}" id="${ctx}-panel-${s.id}">${isOpen?buildDetailHTML(s,ctx):""}</div>
-      </div>`;
+      if (stockEditMode[ctx]) {
+        html += `<div class="stock-item stock-edit-item" id="${ctx}-item-${s.id}" data-id="${s.id}">
+          <div class="stock-row stock-edit-row">
+            <button class="acc-delete-btn" onclick="event.stopPropagation(); deleteStock('${ctx}',${s.id})">✕</button>
+      
+            <div class="stock-name-col">
+              <span class="s-name">${s.name || s.code}</span>
+              <span class="s-code">${s.code}</span>
+            </div>
+      
+            <span class="col-r">${fmtQty(s.qty)}</span>
+            <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
+            <button class="drag-handle" type="button">≡</button>
+          </div>
+        </div>`;
+      } else {
+        html += `<div class="stock-item" id="${ctx}-item-${s.id}">
+          <div class="stock-row" onclick="toggleDetail(${s.id},'${ctx}')">
+            <div class="stock-name-col"><span class="s-name">${s.name||s.code}</span><span class="s-code">${s.code}</span></div>
+            <span class="col-r">${fmtQty(s.qty)}</span>
+            <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
+            <span class="col-chev ${isOpen?"open":""}">›</span>
+          </div>
+          <div class="detail-panel ${isOpen?"":"hidden"}" id="${ctx}-panel-${s.id}">${isOpen?buildDetailHTML(s,ctx):""}</div>
+        </div>`;
+      }
     });
     const pl=tv-tc,rate=tc>0?(pl/tc)*100:NaN;
     $(`${ctx}-totalPL`).textContent=fmtPL(pl);$(`${ctx}-totalPL`).className="sum-val "+pc(pl);
@@ -220,6 +255,83 @@ async function renderStockPage(ctx) {
   }
   rowsEl.innerHTML=html;
   if(expanded[ctx]!=null) loadTxIntoPanel(expanded[ctx],ctx);
+  if (stockEditMode[ctx]) bindStockDragEvents(ctx);
+}
+
+let draggingStockRow = null;
+
+function bindStockDragEvents(ctx) {
+  document.querySelectorAll(`#${ctx}-rows .stock-edit-row .drag-handle`).forEach(handle => {
+    handle.addEventListener("pointerdown", e => {
+      const row = handle.closest(".stock-edit-item");
+      if (!row) return;
+
+      draggingStockRow = row;
+      row.classList.add("dragging");
+
+      handle.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    handle.addEventListener("pointermove", e => {
+      if (!draggingStockRow) return;
+
+      e.preventDefault();
+
+      const rows = [...document.querySelectorAll(`#${ctx}-rows .stock-edit-item:not(.dragging)`)];
+
+      const target = rows.find(row => {
+        const box = row.getBoundingClientRect();
+        return e.clientY >= box.top && e.clientY <= box.bottom;
+      });
+
+      if (!target) return;
+
+      const box = target.getBoundingClientRect();
+      const after = e.clientY > box.top + box.height / 2;
+
+      if (after) {
+        target.after(draggingStockRow);
+      } else {
+        target.before(draggingStockRow);
+      }
+    });
+
+    handle.addEventListener("pointerup", async () => {
+      if (!draggingStockRow) return;
+
+      draggingStockRow.classList.remove("dragging");
+      draggingStockRow = null;
+
+      await saveStockSortOrder(ctx);
+    });
+
+    handle.addEventListener("pointercancel", async () => {
+      if (!draggingStockRow) return;
+
+      draggingStockRow.classList.remove("dragging");
+      draggingStockRow = null;
+
+      await saveStockSortOrder(ctx);
+    });
+  });
+}
+
+async function saveStockSortOrder(ctx) {
+  const db = getDb(ctx);
+  const rows = [...document.querySelectorAll(`#${ctx}-rows .stock-edit-item`)];
+
+  for (let i = 0; i < rows.length; i++) {
+    const id = Number(rows[i].dataset.id);
+    const stock = await idb.get(db, "stocks", id);
+
+    if (stock) {
+      stock.sortOrder = i + 1;
+      await idb.put(db, "stocks", stock);
+    }
+  }
+
+  renderStockPage(ctx);
 }
 
 function buildDetailHTML(s,ctx){
@@ -655,7 +767,10 @@ async function loadAccTxList(accId) {
         <span class="tx-amt">${sign}${fmtAmount(t.amount)}</span>
         <span class="tx-actions">
           <button class="tx-edit-btn" onclick="openEditFinanceTx(${t.id})">改</button>
-          <button class="tx-del-btn" onclick="deleteFinanceTx(${t.id})">✕</button>
+
+          ${t.type === "init"
+              ? ""
+              : `<button class="tx-del-btn" onclick="deleteFinanceTx(${t.id})">✕</button>`}
         </span>
       </div>
       <div class="tx-date">${fmtDate(t.timestamp)}${t.note ? ` · ${t.note}` : ""}</div>
@@ -864,7 +979,16 @@ async function openEditFinanceTx(txId) {
   $("edit-tx-amount").value = Math.abs(Number(tx.amount) || 0);
   $("edit-tx-note").value = tx.note || "";
 
-  selectEditFinanceTxType(tx.type);
+  if (tx.type === "init") {
+    $("editFinanceTx-title").textContent = "修改初始餘額";
+    $("edit-finance-tx-type-row").classList.add("hidden");
+    $("edit-tx-to-acc").classList.add("hidden");
+    editFinanceTxType = "init";
+  } else {
+    $("edit-finance-tx-type-row").classList.remove("hidden");
+    selectEditFinanceTxType(tx.type);
+  }
+
   openModal("modal-editFinanceTx");
 }
 
@@ -874,7 +998,8 @@ function selectEditFinanceTxType(type) {
   const titles = {
     income: "修改收入",
     expense: "修改費用",
-    transfer: "修改資金轉帳"
+    transfer: "修改資金轉帳",
+    init: "修改初始餘額"
   };
 
   $("editFinanceTx-title").textContent = titles[type] || "修改紀錄";
@@ -947,7 +1072,9 @@ async function submitEditFinanceTx() {
   let newType = oldTx.type === "init" ? "init" : editFinanceTxType;
   let toId = null;
 
-  if (newType === "transfer") {
+  if (newType === "init") {
+    toId = null;
+  } else if (newType === "transfer") {
     toId = Number($("edit-tx-to-acc").value);
     if (!toId || toId === fromId) {
       alert("請選擇不同的目標帳戶");

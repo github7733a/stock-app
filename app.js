@@ -454,18 +454,60 @@ function selectAccType(type) {
   $("acc-type-asset").classList.toggle("active", type === "asset");
   $("acc-type-liability").classList.toggle("active", type === "liability");
 }
+function parseMoneyInput(s) {
+  s = String(s || "").trim().replace(/,/g, "");
+
+  if (!s) return 0;
+
+  if (/^\(.+\)$/.test(s)) {
+    return -Math.abs(Number(s.slice(1, -1)) || 0);
+  }
+
+  return Number(s) || 0;
+}
+
+function toggleAccInitNegative() {
+  const el = $("acc-init");
+  let v = el.value.trim();
+
+  if (!v) return;
+
+  if (/^\(.+\)$/.test(v)) {
+    el.value = v.slice(1, -1);
+  } else {
+    el.value = `(${v})`;
+  }
+}
+
 async function submitAddAccount() {
   const name = $("acc-name").value.trim();
-  const init = Number($("acc-init").value) || 0;
-  if (!name) { alert("請輸入帳戶名稱"); return; }
-  const balance = addAccType === "liability" ? -Math.abs(init) : Math.abs(init);
-  const accId = await idb.add(financeDb, "accounts", { name, balance, createdAt: Date.now() });
-  if (init !== 0) {
+  const raw = $("acc-init").value.trim();
+
+  if (!name) {
+    alert("請輸入帳戶名稱");
+    return;
+  }
+
+  const balance = parseMoneyInput(raw);
+
+  const accId = await idb.add(financeDb, "accounts", {
+    name,
+    type: addAccType,
+    balance,
+    createdAt: Date.now()
+  });
+
+  if (balance !== 0) {
     await idb.add(financeDb, "transactions", {
-      accountId: accId, type: "init", amount: Math.abs(init),
-      toAccountId: null, note: "初始餘額", timestamp: Date.now()
+      accountId: accId,
+      type: "init",
+      amount: balance,
+      toAccountId: null,
+      note: "初始餘額",
+      timestamp: Date.now()
     });
   }
+
   closeModal("modal-addAccount");
   renderBalancePage();
 }
@@ -492,7 +534,7 @@ async function loadAccTxList(accId) {
   txs.sort((a,b) => b.timestamp - a.timestamp);
   const lbl = { init:"初始餘額", income:"收入", expense:"費用", transfer:"轉帳" };
   $("acc-tx-list").innerHTML = txs.map(t => {
-    const isOut = t.type === "expense" || t.type === "transfer";
+    const isOut = t.type === "expense" || t.type === "transfer" || Number(t.amount) < 0;
     const cls   = isOut ? "neg" : "pos";
     const sign  = isOut ? "−" : "+";
     const sub   = t.type === "transfer" && t.toAccountId
@@ -546,7 +588,7 @@ function selectTxType(type) {
     b.classList.toggle("active", ["income","expense","transfer"][i] === type);
   });
   $("tx-to-acc").classList.toggle("hidden", type !== "transfer");
-  $("tx-category").classList.toggle("hidden", type === "transfer");
+  $("tx-category").classList.add("hidden");
 }
 
 async function submitAddTx() {

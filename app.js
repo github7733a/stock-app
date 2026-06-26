@@ -532,7 +532,7 @@ async function loadAccTxList(accId) {
   const allAcc = await idb.all(financeDb, "accounts");
   const accMap = Object.fromEntries(allAcc.map(a => [a.id, a.name]));
   txs.sort((a,b) => b.timestamp - a.timestamp);
-  const lbl = { init:"初始餘額", income:"收入", expense:"費用", transfer:"轉帳" };
+  const lbl = { init:"初始餘額", income:"收入", expense:"費用", transfer:"資金轉帳" };
   $("acc-tx-list").innerHTML = txs.map(t => {
     const isOut = t.type === "expense" || t.type === "transfer" || Number(t.amount) < 0;
     const cls   = isOut ? "neg" : "pos";
@@ -582,7 +582,7 @@ async function openAddTx(presetType) {
 
 function selectTxType(type) {
   addTxType = type;
-  const titles = { income:"記收入", expense:"記費用", transfer:"轉帳" };
+  const titles = { income:"記收入", expense:"記費用", transfer:"資金轉帳" };
   $("addTx-title").textContent = titles[type] || "記帳";
   document.querySelectorAll("#tx-type-row .type-btn").forEach((b,i) => {
     b.classList.toggle("active", ["income","expense","transfer"][i] === type);

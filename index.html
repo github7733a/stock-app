@@ -53,8 +53,8 @@
     </div>
     <div class="acc-action-row">
       <button class="acc-action-btn" onclick="openAddTx('income')">收入</button>
-      <button class="acc-action-btn" onclick="openAddTx('expense')">支出</button>
-      <button class="acc-action-btn" onclick="openAddTx('transfer')">轉帳</button>
+      <button class="acc-action-btn" onclick="openAddTx('expense')">費用</button>
+      <button class="acc-action-btn" onclick="openAddTx('transfer')">資金轉帳</button>
     </div>
     <div class="section-label">交易紀錄</div>
     <div id="acc-tx-list"></div>
@@ -204,7 +204,7 @@
   </div>
 </div>
 
-<!-- ══ MODAL: 記帳（收入/支出/轉帳）══ -->
+<!-- ══ MODAL: 記帳（收入/費用/資金轉帳）══ -->
 <div id="modal-addTx" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
@@ -213,8 +213,8 @@
     </div>
     <div class="type-selector" id="tx-type-row">
       <button class="type-btn active" onclick="selectTxType('income')">收入</button>
-      <button class="type-btn"        onclick="selectTxType('expense')">支出</button>
-      <button class="type-btn"        onclick="selectTxType('transfer')">轉帳</button>
+      <button class="type-btn"        onclick="selectTxType('expense')">費用</button>
+      <button class="type-btn"        onclick="selectTxType('transfer')">資金轉帳</button>
     </div>
     <select id="tx-from-acc" class="modal-select"></select>
     <select id="tx-to-acc"   class="modal-select hidden"></select>

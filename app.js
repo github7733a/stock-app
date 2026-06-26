@@ -348,7 +348,6 @@ function buildDetailHTML(s,ctx){
   <div class="detail-actions">
     <button class="buy-btn"  onclick="openTrade('buy','${ctx}',${s.id})">買入</button>
     <button class="sell-btn" onclick="openTrade('sell','${ctx}',${s.id})">賣出</button>
-    <button class="del-btn"  onclick="deleteStock('${ctx}',${s.id})">刪除</button>
   </div>
   <div class="tx-section"><div class="tx-title">交易紀錄</div>
     <div id="${ctx}-tx-${s.id}"><span class="loading-tip">載入中…</span></div>

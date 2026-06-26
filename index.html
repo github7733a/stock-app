@@ -25,8 +25,8 @@
   <div class="topbar">
     <span class="topbar-title">餘額</span>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="ghost-btn-sm" onclick="openAddTx(null)">記帳</button>
-      <button class="add-btn" onclick="openAddAccount()">＋</button>
+      <button class="ghost-btn-sm" id="balance-add-btn" onclick="openAddAccount()" style="display:none">＋</button>
+      <button class="ghost-btn-sm" id="balance-edit-btn" onclick="toggleBalanceEdit()">編輯</button>
     </div>
   </div>
 
@@ -204,6 +204,30 @@
   </div>
 </div>
 
+<!-- ══ MODAL: 修改帳號 ══ -->
+<div id="modal-editAccount" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span>修改帳號</span>
+      <button class="close-btn" onclick="closeModal('modal-editAccount')">✕</button>
+    </div>
+
+    <input id="edit-acc-name" placeholder="帳號名稱">
+
+    <div class="type-selector">
+      <button class="type-btn active" id="edit-acc-type-asset" onclick="selectEditAccType('asset')">資產</button>
+      <button class="type-btn" id="edit-acc-type-liability" onclick="selectEditAccType('liability')">負債</button>
+    </div>
+
+    <div class="money-input-row">
+      <input id="edit-acc-balance" type="text" inputmode="decimal" placeholder="餘額，可輸入 1000 或 (1000)">
+      <button type="button" class="minus-toggle-btn" onclick="toggleEditAccNegative()">−</button>
+    </div>
+
+    <button class="primary-btn" onclick="submitEditAccountBasic()">儲存</button>
+  </div>
+</div>
+
 <!-- ══ MODAL: 記帳（收入/費用/資金轉帳）══ -->
 <div id="modal-addTx" class="modal-overlay hidden">
   <div class="modal">
@@ -222,6 +246,29 @@
     <input id="tx-amount" type="number" inputmode="decimal" placeholder="金額">
     <input id="tx-note"   placeholder="備註（選填）">
     <button class="primary-btn" onclick="submitAddTx()">儲存</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: 修改記帳紀錄 ══ -->
+<div id="modal-editFinanceTx" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="editFinanceTx-title">修改紀錄</span>
+      <button class="close-btn" onclick="closeModal('modal-editFinanceTx')">✕</button>
+    </div>
+
+    <div class="type-selector" id="edit-finance-tx-type-row">
+      <button class="type-btn active" onclick="selectEditFinanceTxType('income')">收入</button>
+      <button class="type-btn" onclick="selectEditFinanceTxType('expense')">費用</button>
+      <button class="type-btn" onclick="selectEditFinanceTxType('transfer')">資金轉帳</button>
+    </div>
+
+    <select id="edit-tx-from-acc" class="modal-select"></select>
+    <select id="edit-tx-to-acc" class="modal-select hidden"></select>
+    <input id="edit-tx-amount" type="number" inputmode="decimal" placeholder="金額">
+    <input id="edit-tx-note" placeholder="備註（選填）">
+
+    <button class="primary-btn" onclick="submitEditFinanceTx()">儲存</button>
   </div>
 </div>
 

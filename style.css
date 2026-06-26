@@ -455,3 +455,47 @@ html, body {
   font-size: 22px;
   font-weight: 700;
 }
+
+.edit-mode-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.acc-delete-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.drag-handle {
+  text-align: center;
+  color: var(--sub);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.edit-mode-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.acc-edit-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.edit-mode-row.dragging {
+  opacity: .45;
+}

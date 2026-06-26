@@ -411,6 +411,7 @@ function closeOverlay(id) { $(id).classList.add("hidden"); }
 async function renderBalancePage() {
   await financeReady;
   const accounts  = await idb.all(financeDb, "accounts");
+  accounts.sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id));
   const stockVal  = await getStockTotal("stocks");
   const pledgeVal = await getStockTotal("pledge");
   const accSum    = accounts.reduce((s, a) => s + a.balance, 0);
@@ -421,10 +422,23 @@ async function renderBalancePage() {
 
   let html = "";
   accounts.forEach(a => {
-    html += `<div class="acc-row" onclick="openAccountDetail(${a.id})">
-      <span class="acc-name">${a.name}</span>
-      <span class="acc-bal ${a.balance < 0 ? "neg" : ""}">${fmtMoney(a.balance)}</span>
-    </div>`;
+    if (balanceEditMode) {
+      html += `<div class="acc-row edit-mode-row" draggable="true" data-id="${a.id}">
+        <button class="acc-delete-btn" onclick="event.stopPropagation(); deleteAccountFromList(${a.id})">✕</button>
+    
+        <div class="acc-edit-main" onclick="event.stopPropagation(); openEditAccountBasic(${a.id})">
+          <span class="acc-name">${a.name}</span>
+          <span class="acc-bal ${a.balance < 0 ? "neg" : ""}">${fmtMoney(a.balance)}</span>
+        </div>
+    
+        <span class="drag-handle">≡</span>
+      </div>`;
+    } else {
+      html += `<div class="acc-row" onclick="openAccountDetail(${a.id})">
+        <span class="acc-name">${a.name}</span>
+        <span class="acc-bal ${a.balance < 0 ? "neg" : ""}">${fmtMoney(a.balance)}</span>
+      </div>`;
+    }
   });
   if (stockVal !== 0) {
     html += `<div class="acc-row readonly-row">
@@ -439,10 +453,69 @@ async function renderBalancePage() {
     </div>`;
   }
   $("accountRows").innerHTML = html || '<div class="empty-tip">尚未新增帳戶<br>點右上角「＋」新增</div>';
+  if (balanceEditMode) bindAccountDragEvents();
+}
+
+let draggedAccountId = null;
+
+function bindAccountDragEvents() {
+  document.querySelectorAll(".edit-mode-row").forEach(row => {
+    row.addEventListener("dragstart", e => {
+      draggedAccountId = Number(row.dataset.id);
+      row.classList.add("dragging");
+    });
+
+    row.addEventListener("dragend", async e => {
+      row.classList.remove("dragging");
+      draggedAccountId = null;
+      await saveAccountSortOrder();
+    });
+
+    row.addEventListener("dragover", e => {
+      e.preventDefault();
+
+      const dragging = document.querySelector(".edit-mode-row.dragging");
+      if (!dragging || dragging === row) return;
+
+      const box = row.getBoundingClientRect();
+      const after = e.clientY > box.top + box.height / 2;
+
+      if (after) {
+        row.after(dragging);
+      } else {
+        row.before(dragging);
+      }
+    });
+  });
+}
+
+async function saveAccountSortOrder() {
+  const rows = [...document.querySelectorAll(".edit-mode-row")];
+
+  for (let i = 0; i < rows.length; i++) {
+    const id = Number(rows[i].dataset.id);
+    const acc = await idb.get(financeDb, "accounts", id);
+    if (acc) {
+      acc.sortOrder = i + 1;
+      await idb.put(financeDb, "accounts", acc);
+    }
+  }
+
+  renderBalancePage();
 }
 
 /* ── 新增帳戶 ─────────────────────────────────────────────── */
 let addAccType = "asset";
+let balanceEditMode = false;
+
+function toggleBalanceEdit() {
+  balanceEditMode = !balanceEditMode;
+
+  $("balance-edit-btn").textContent = balanceEditMode ? "完成" : "編輯";
+  $("balance-add-btn").style.display = balanceEditMode ? "" : "none";
+
+  renderBalancePage();
+}
 
 function openAddAccount() {
   $("acc-name").value = ""; $("acc-init").value = "";
@@ -494,19 +567,18 @@ async function submitAddAccount() {
     name,
     type: addAccType,
     balance,
+    sortOrder: Date.now(),
     createdAt: Date.now()
   });
 
-  if (balance !== 0) {
-    await idb.add(financeDb, "transactions", {
-      accountId: accId,
-      type: "init",
-      amount: balance,
-      toAccountId: null,
-      note: "初始餘額",
-      timestamp: Date.now()
-    });
-  }
+  await idb.add(financeDb, "transactions", {
+    accountId: accId,
+    type: "init",
+    amount: balance,
+    toAccountId: null,
+    note: "初始餘額",
+    timestamp: Date.now()
+  });
 
   closeModal("modal-addAccount");
   renderBalancePage();
@@ -531,23 +603,35 @@ async function loadAccTxList(accId) {
   const txs    = await idb.idx(financeDb, "transactions", "accountId", accId);
   const allAcc = await idb.all(financeDb, "accounts");
   const accMap = Object.fromEntries(allAcc.map(a => [a.id, a.name]));
-  txs.sort((a,b) => b.timestamp - a.timestamp);
-  const lbl = { init:"初始餘額", income:"收入", expense:"費用", transfer:"資金轉帳" };
+
+  txs.sort((a, b) => b.timestamp - a.timestamp);
+
+  const lbl = {
+    init: "初始餘額",
+    income: "收入",
+    expense: "費用",
+    transfer: "資金轉帳"
+  };
+
   $("acc-tx-list").innerHTML = txs.map(t => {
     const isOut = t.type === "expense" || t.type === "transfer" || Number(t.amount) < 0;
     const cls   = isOut ? "neg" : "pos";
     const sign  = isOut ? "−" : "+";
-    const sub   = t.type === "transfer" && t.toAccountId
-      ? ` → ${accMap[t.toAccountId] || "?"}` : (t.note ? ` · ${t.note}` : "");
+
+    const title = t.type === "transfer" && t.toAccountId
+      ? `${lbl[t.type]} → ${accMap[t.toAccountId] || "?"}`
+      : lbl[t.type] || t.type;
+
     return `<div class="tx-row">
       <div class="tx-main">
-        <span class="tx-type ${cls}">${lbl[t.type]||t.type}${sub}</span>
+        <span class="tx-type ${cls}">${title}</span>
         <span class="tx-amt">${sign}${fmtAmount(t.amount)}</span>
         <span class="tx-actions">
+          <button class="tx-edit-btn" onclick="openEditFinanceTx(${t.id})">改</button>
           <button class="tx-del-btn" onclick="deleteFinanceTx(${t.id})">✕</button>
         </span>
       </div>
-      <div class="tx-date">${fmtDate(t.timestamp)}</div>
+      <div class="tx-date">${fmtDate(t.timestamp)}${t.note ? ` · ${t.note}` : ""}</div>
     </div>`;
   }).join("") || '<div class="empty-tip">尚無交易紀錄</div>';
 }
@@ -558,6 +642,98 @@ async function deleteCurrentAccount() {
   await idb.del(financeDb, "accounts", currentAccId);
   await idb.delIdx(financeDb, "transactions", "accountId", currentAccId);
   closeAccountDetail();
+  renderBalancePage();
+}
+
+let editAccId = null;
+let editAccType = "asset";
+
+async function openEditAccountBasic(id) {
+  editAccId = id;
+
+  const acc = await idb.get(financeDb, "accounts", id);
+  if (!acc) return;
+
+  $("edit-acc-name").value = acc.name;
+  $("edit-acc-balance").value = acc.balance < 0
+    ? `(${Math.abs(acc.balance)})`
+    : String(acc.balance);
+
+  selectEditAccType(acc.type || "asset");
+  openModal("modal-editAccount");
+}
+
+function selectEditAccType(type) {
+  editAccType = type;
+  $("edit-acc-type-asset").classList.toggle("active", type === "asset");
+  $("edit-acc-type-liability").classList.toggle("active", type === "liability");
+}
+
+function toggleEditAccNegative() {
+  const el = $("edit-acc-balance");
+  let v = el.value.trim();
+
+  if (!v) return;
+
+  if (/^\(.+\)$/.test(v)) {
+    el.value = v.slice(1, -1);
+  } else {
+    el.value = `(${v})`;
+  }
+}
+
+async function submitEditAccountBasic() {
+  const acc = await idb.get(financeDb, "accounts", editAccId);
+  if (!acc) return;
+
+  const name = $("edit-acc-name").value.trim();
+  const newInit = parseMoneyInput($("edit-acc-balance").value);
+
+  if (!name) {
+    alert("請輸入帳號名稱");
+    return;
+  }
+
+  const txs = await idb.idx(financeDb, "transactions", "accountId", editAccId);
+  let initTx = txs.find(t => t.type === "init");
+
+  const oldInit = initTx ? Number(initTx.amount) || 0 : 0;
+  const diff = newInit - oldInit;
+
+  acc.name = name;
+  acc.type = editAccType;
+  acc.balance = (Number(acc.balance) || 0) + diff;
+
+  await idb.put(financeDb, "accounts", acc);
+
+  if (initTx) {
+    initTx.amount = newInit;
+    initTx.note = "初始餘額";
+    await idb.put(financeDb, "transactions", initTx);
+  } else {
+    await idb.add(financeDb, "transactions", {
+      accountId: editAccId,
+      type: "init",
+      amount: newInit,
+      toAccountId: null,
+      note: "初始餘額",
+      timestamp: Date.now()
+    });
+  }
+
+  closeModal("modal-editAccount");
+  renderBalancePage();
+}
+
+async function deleteAccountFromList(id) {
+  const acc = await idb.get(financeDb, "accounts", id);
+  if (!acc) return;
+
+  if (!confirm(`確定刪除「${acc.name}」？紀錄也會一併刪除。`)) return;
+
+  await idb.del(financeDb, "accounts", id);
+  await idb.delIdx(financeDb, "transactions", "accountId", id);
+
   renderBalancePage();
 }
 
@@ -636,6 +812,144 @@ async function submitAddTx() {
     }
     await loadAccTxList(currentAccId);
   }
+  renderBalancePage();
+}
+
+let editFinanceTxId = null;
+let editFinanceTxType = "income";
+
+async function openEditFinanceTx(txId) {
+  editFinanceTxId = txId;
+
+  const tx = await idb.get(financeDb, "transactions", txId);
+  if (!tx) return;
+
+  const accounts = await idb.all(financeDb, "accounts");
+  const accOpts = accounts.map(a =>
+    `<option value="${a.id}">${a.name}</option>`
+  ).join("");
+
+  $("edit-tx-from-acc").innerHTML = accOpts;
+  $("edit-tx-to-acc").innerHTML = accOpts;
+
+  $("edit-tx-from-acc").value = tx.accountId;
+  $("edit-tx-to-acc").value = tx.toAccountId || "";
+  $("edit-tx-amount").value = Math.abs(Number(tx.amount) || 0);
+  $("edit-tx-note").value = tx.note || "";
+
+  selectEditFinanceTxType(tx.type);
+  openModal("modal-editFinanceTx");
+}
+
+function selectEditFinanceTxType(type) {
+  editFinanceTxType = type;
+
+  const titles = {
+    income: "修改收入",
+    expense: "修改費用",
+    transfer: "修改資金轉帳"
+  };
+
+  $("editFinanceTx-title").textContent = titles[type] || "修改紀錄";
+
+  document.querySelectorAll("#edit-finance-tx-type-row .type-btn").forEach((b, i) => {
+    b.classList.toggle("active", ["income", "expense", "transfer"][i] === type);
+  });
+
+  $("edit-tx-to-acc").classList.toggle("hidden", type !== "transfer");
+}
+
+async function reverseFinanceTx(tx) {
+  const acc = await idb.get(financeDb, "accounts", tx.accountId);
+  if (!acc) return;
+
+  if (tx.type === "income" || tx.type === "init") {
+    acc.balance -= tx.amount;
+  } else if (tx.type === "expense") {
+    acc.balance += tx.amount;
+  } else if (tx.type === "transfer") {
+    acc.balance += tx.amount;
+
+    const toAcc = await idb.get(financeDb, "accounts", tx.toAccountId);
+    if (toAcc) {
+      toAcc.balance -= tx.amount;
+      await idb.put(financeDb, "accounts", toAcc);
+    }
+  }
+
+  await idb.put(financeDb, "accounts", acc);
+}
+
+async function applyFinanceTx(tx) {
+  const acc = await idb.get(financeDb, "accounts", tx.accountId);
+  if (!acc) return;
+
+  if (tx.type === "income" || tx.type === "init") {
+    acc.balance += tx.amount;
+  } else if (tx.type === "expense") {
+    acc.balance -= tx.amount;
+  } else if (tx.type === "transfer") {
+    acc.balance -= tx.amount;
+
+    const toAcc = await idb.get(financeDb, "accounts", tx.toAccountId);
+    if (toAcc) {
+      toAcc.balance += tx.amount;
+      await idb.put(financeDb, "accounts", toAcc);
+    }
+  }
+
+  await idb.put(financeDb, "accounts", acc);
+}
+
+async function submitEditFinanceTx() {
+  const oldTx = await idb.get(financeDb, "transactions", editFinanceTxId);
+  if (!oldTx) return;
+
+  const amount = Number($("edit-tx-amount").value);
+  if (!amount || amount <= 0) {
+    alert("請輸入正確金額");
+    return;
+  }
+
+  const fromId = Number($("edit-tx-from-acc").value);
+  if (!fromId) {
+    alert("請選擇帳戶");
+    return;
+  }
+
+  let newType = oldTx.type === "init" ? "init" : editFinanceTxType;
+  let toId = null;
+
+  if (newType === "transfer") {
+    toId = Number($("edit-tx-to-acc").value);
+    if (!toId || toId === fromId) {
+      alert("請選擇不同的目標帳戶");
+      return;
+    }
+  }
+
+  await reverseFinanceTx(oldTx);
+
+  oldTx.accountId = fromId;
+  oldTx.type = newType;
+  oldTx.amount = amount;
+  oldTx.toAccountId = toId;
+  oldTx.note = $("edit-tx-note").value.trim();
+
+  await applyFinanceTx(oldTx);
+  await idb.put(financeDb, "transactions", oldTx);
+
+  closeModal("modal-editFinanceTx");
+
+  if (currentAccId) {
+    const fresh = await idb.get(financeDb, "accounts", currentAccId);
+    if (fresh) {
+      $("ov-acc-balance").textContent = fmtMoney(fresh.balance);
+      $("ov-acc-balance").className = "acc-balance-val " + (fresh.balance < 0 ? "neg" : "");
+    }
+    await loadAccTxList(currentAccId);
+  }
+
   renderBalancePage();
 }
 

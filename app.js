@@ -592,17 +592,21 @@ async function getGoalSources() {
     value: Number(a.balance) || 0
   }));
 
-  sources.push({
-    key: "stock:stocks",
-    name: "股票市值",
-    value: stockVal
-  });
+  if (stockVal !== 0) {
+    sources.push({
+      key: "stock:stocks",
+      name: "股票市值",
+      value: stockVal
+    });
+  }
 
-  sources.push({
-    key: "stock:pledge",
-    name: "質押股票市值",
-    value: pledgeVal
-  });
+  if (pledgeVal !== 0) {
+    sources.push({
+      key: "stock:pledge",
+      name: "質押股票市值",
+      value: pledgeVal
+    });
+  }
 
   return sources;
 }
@@ -679,7 +683,7 @@ function renderGoalSourceList(sources) {
   $("goal-source-list").innerHTML = sources.map(s => {
     const checked = goalSelectedItems.includes(s.key) ? "checked" : "";
 
-    return `<label class="goal-source-row">
+    return `<label class="goal-source-row ${checked ? "selected" : ""}">
       <input type="checkbox" value="${s.key}" ${checked} onchange="toggleGoalSource(this)">
       <span class="goal-source-name">${s.name}</span>
       <span class="goal-source-value ${s.value < 0 ? "neg" : ""}">${fmtMoney(s.value)}</span>
@@ -696,6 +700,8 @@ async function toggleGoalSource(el) {
     goalSelectedItems = goalSelectedItems.filter(x => x !== key);
   }
 
+  const sources = await getGoalSources();
+  renderGoalSourceList(sources);
   await updateGoalPreview();
 }
 

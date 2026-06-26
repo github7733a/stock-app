@@ -654,3 +654,25 @@ html, body {
   font-size: 15px;
   font-weight: 700;
 }
+
+.goal-source-row {
+  border-radius: 10px;
+  padding: 12px 10px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.goal-source-row.selected {
+  border-color: var(--blue);
+  background: #eef3ff;
+}
+
+.goal-source-row.selected .goal-source-name,
+.goal-source-row.selected .goal-source-value {
+  color: var(--blue);
+}
+
+.goal-source-row input {
+  accent-color: var(--blue);
+}

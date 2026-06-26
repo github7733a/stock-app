@@ -10,6 +10,7 @@
   --text:   #1c1c1e;
   --sub:    #8e8e93;
   --r:      12px;
+  --tab-h:  56px;
 }
 
 html, body {
@@ -18,11 +19,20 @@ html, body {
   color: var(--text);
   -webkit-text-size-adjust: 100%;
   font-size: 15px;
+  height: 100%;
 }
 
 .hidden { display: none !important; }
 
-/* ── TopBar ───────────────────────────────── */
+/* ── Page ─────────────────────────────────────────── */
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: calc(var(--tab-h) + 16px);
+  min-height: 100dvh;
+}
+
+/* ── TopBar ───────────────────────────────────────── */
 .topbar {
   display: flex;
   align-items: center;
@@ -33,344 +43,253 @@ html, body {
   background: var(--bg);
   z-index: 20;
 }
-
-.topbar-title { font-size: 18px; font-weight: 700; }
+.topbar-title { font-size: 18px; font-weight: 700; flex: 1; }
 
 .add-btn {
   width: 36px; height: 36px;
-  border-radius: 50%;
-  border: none;
-  background: var(--blue);
-  color: #fff;
-  font-size: 22px;
-  line-height: 34px;
-  text-align: center;
-  cursor: pointer;
-  padding: 0;
+  border-radius: 50%; border: none;
+  background: var(--blue); color: #fff;
+  font-size: 22px; line-height: 34px;
+  text-align: center; cursor: pointer; padding: 0;
 }
 
-/* ── Status bar ───────────────────────────── */
+/* ── Status bar ───────────────────────────────────── */
 .status-bar {
-  display: flex;
-  align-items: center;
+  display: flex; align-items: center;
   justify-content: space-between;
-  padding: 0 14px 8px;
-  gap: 8px;
+  padding: 0 14px 8px; gap: 8px;
 }
-
-#priceStatusText {
-  font-size: 11px;
-  color: var(--sub);
-  flex: 1;
+#priceStatusText, #pledgeStatusText {
+  font-size: 11px; color: var(--sub); flex: 1;
 }
-
 .refresh-btn {
-  font-size: 11px;
-  padding: 4px 10px;
-  border: 1px solid var(--blue);
-  border-radius: 20px;
-  background: transparent;
-  color: var(--blue);
-  white-space: nowrap;
-  cursor: pointer;
+  font-size: 11px; padding: 4px 10px;
+  border: 1px solid var(--blue); border-radius: 20px;
+  background: transparent; color: var(--blue);
+  white-space: nowrap; cursor: pointer;
 }
 
-/* ── Main card ────────────────────────────── */
+/* ── Main card ────────────────────────────────────── */
 .main-card {
   background: var(--card);
   border-radius: var(--r);
-  margin: 0 12px 24px;
+  margin: 0 12px;
   overflow: hidden;
   box-shadow: 0 1px 6px rgba(0,0,0,.07);
 }
 
-/* ── Table header ─────────────────────────── */
+/* ── Table header ─────────────────────────────────── */
 .table-header {
   display: grid;
-  grid-template-columns: 1fr 52px 88px 24px;
+  grid-template-columns: 1fr 56px 90px 24px;
   padding: 8px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--sub);
+  font-size: 11px; font-weight: 600; color: var(--sub);
   border-bottom: 1px solid var(--border);
-  text-transform: uppercase;
-  letter-spacing: .4px;
+  text-transform: uppercase; letter-spacing: .4px;
 }
-
 .col-r    { text-align: right; }
 .col-chev { text-align: center; }
 
-/* ── Stock row ────────────────────────────── */
+/* ── Stock row ────────────────────────────────────── */
 .stock-row {
   display: grid;
-  grid-template-columns: 1fr 52px 88px 24px;
+  grid-template-columns: 1fr 56px 90px 24px;
   align-items: center;
   padding: 12px 12px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-
 .stock-row:active { background: #f5f5f7; }
 
-.stock-name-col {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
+.stock-name-col { display: flex; flex-direction: column; gap: 2px; }
 .s-name { font-size: 15px; font-weight: 600; }
 .s-code { font-size: 11px; color: var(--sub); }
 
 .col-chev {
-  font-size: 18px;
-  color: var(--sub);
+  font-size: 18px; color: var(--sub);
   text-align: center;
-  transition: transform .2s;
-  display: inline-block;
+  transition: transform .2s; display: inline-block;
 }
-
 .col-chev.open { transform: rotate(90deg); color: var(--blue); }
 
-/* ── Detail panel (accordion) ─────────────── */
+/* ── Detail panel ─────────────────────────────────── */
 .detail-panel {
   background: #f7f8fa;
   border-bottom: 1px solid var(--border);
   padding: 12px;
 }
 
-/* ── Metrics 2×3 grid ─────────────────────── */
+/* ── Metrics 2×3 ──────────────────────────────────── */
 .metrics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--border);
-  border-radius: 10px;
-  overflow: hidden;
+  gap: 1px; background: var(--border);
+  border-radius: 10px; overflow: hidden;
   margin-bottom: 12px;
 }
-
-.metric {
-  background: var(--card);
-  padding: 10px 12px;
-}
-
+.metric { background: var(--card); padding: 10px 12px; }
 .m-label { font-size: 11px; color: var(--sub); margin-bottom: 3px; }
 .m-val   { font-size: 15px; font-weight: 700; }
 
-/* ── Action buttons ───────────────────────── */
+/* ── Action buttons ───────────────────────────────── */
 .detail-actions {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 8px; margin-bottom: 14px;
 }
-
 .buy-btn, .sell-btn, .del-btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
+  border: none; border-radius: 10px;
+  padding: 10px 8px; font-size: 14px;
+  font-weight: 600; cursor: pointer;
 }
-
 .buy-btn  { background: #fff0f0; color: var(--red); }
 .sell-btn { background: #f0fff4; color: var(--green); }
-.del-btn  {
-  background: #f2f2f7;
-  color: var(--sub);
-  padding: 10px 12px;
-}
+.del-btn  { background: #f2f2f7; color: var(--sub); padding: 10px 14px; }
 
-/* ── Transaction history ──────────────────── */
+/* ── Transaction list ─────────────────────────────── */
 .tx-section { }
 .tx-title { font-size: 12px; font-weight: 600; color: var(--sub); margin-bottom: 8px; }
-
 .tx-row {
-  background: var(--card);
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-bottom: 6px;
+  background: var(--card); border-radius: 8px;
+  padding: 8px 10px; margin-bottom: 6px;
 }
-
-.tx-main {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tx-type { font-weight: 700; font-size: 13px; min-width: 52px; }
+.tx-main { display: flex; align-items: center; gap: 6px; }
+.tx-type { font-weight: 700; font-size: 13px; min-width: 54px; }
 .tx-qty  { font-size: 13px; }
-.tx-amt  { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--text); }
+.tx-amt  { margin-left: auto; font-size: 13px; font-weight: 600; }
 .tx-date { font-size: 11px; color: var(--sub); margin-top: 3px; }
-
 .loading-tip { font-size: 12px; color: var(--sub); padding: 4px; }
 
-/* ── Summary block ────────────────────────── */
+.tx-actions { display: flex; gap: 4px; }
+.tx-edit-btn, .tx-del-btn {
+  font-size: 11px; padding: 3px 8px;
+  border-radius: 6px; border: none;
+  cursor: pointer; font-weight: 600;
+}
+.tx-edit-btn { background: #e8f0ff; color: var(--blue); }
+.tx-del-btn  { background: #fff0f0; color: var(--red); }
+
+/* ── Summary ──────────────────────────────────────── */
 .summary-block {
   border-top: 2px solid var(--border);
-  padding: 10px 14px;
-  background: #fafafa;
+  padding: 10px 14px; background: #fafafa;
 }
-
 .summary-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 0;
-  font-size: 13px;
-  flex-wrap: wrap;
+  display: flex; align-items: center;
+  gap: 6px; padding: 3px 0;
+  font-size: 13px; flex-wrap: wrap;
 }
-
 .sum-label { color: var(--sub); }
 .sum-val   { font-weight: 700; color: var(--text); }
+.sep       { color: var(--border); }
 
-/* ── Color ────────────────────────────────── */
-.pos { color: var(--red); }    /* 台股紅漲 */
-.neg { color: var(--green); }  /* 台股綠跌 */
+/* ── Colors ───────────────────────────────────────── */
+.pos { color: var(--red); }   /* 台股紅漲 */
+.neg { color: var(--green); } /* 台股綠跌 */
 
-/* ── Empty ────────────────────────────────── */
+/* ── Empty ────────────────────────────────────────── */
 .empty-tip {
-  text-align: center;
-  color: var(--sub);
-  padding: 28px 16px;
-  font-size: 14px;
+  text-align: center; color: var(--sub);
+  padding: 28px 16px; font-size: 14px;
   line-height: 1.7;
 }
 
-/* ── Modals ───────────────────────────────── */
-.modal-overlay {
+/* ── TAB BAR ──────────────────────────────────────── */
+.tab-bar {
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.4);
-  z-index: 100;
+  bottom: 0; left: 0; right: 0;
+  height: var(--tab-h);
+  background: rgba(255,255,255,.92);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
   display: flex;
+  z-index: 50;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.tab {
+  flex: 1; display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none; background: transparent;
+  color: var(--sub);
+  font-size: 10px; font-weight: 500;
+  cursor: pointer; padding: 6px 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab svg {
+  width: 22px; height: 22px;
+  stroke: currentColor;
+}
+.tab.active { color: var(--blue); }
+.tab span   { font-size: 10px; }
+
+/* ── Modals ───────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 100; display: flex;
   align-items: flex-end;
 }
-
 .modal {
   background: var(--card);
   border-radius: var(--r) var(--r) 0 0;
   padding: 0 16px 36px;
-  width: 100%;
-  max-width: 480px;
+  width: 100%; max-width: 480px;
   margin: 0 auto;
 }
-
 .modal-header {
-  display: flex;
-  align-items: center;
+  display: flex; align-items: center;
   justify-content: space-between;
   padding: 18px 0 14px;
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 17px; font-weight: 700;
 }
-
 .close-btn {
   width: 30px; height: 30px;
-  border-radius: 50%;
-  border: none;
-  background: var(--border);
-  color: var(--sub);
-  font-size: 14px;
-  cursor: pointer;
-  line-height: 30px;
-  text-align: center;
-  padding: 0;
+  border-radius: 50%; border: none;
+  background: var(--border); color: var(--sub);
+  font-size: 14px; cursor: pointer;
+  line-height: 30px; text-align: center; padding: 0;
 }
-
 .modal input {
-  display: block;
-  width: 100%;
-  padding: 13px 14px;
-  margin: 8px 0;
+  display: block; width: 100%;
+  padding: 13px 14px; margin: 8px 0;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 16px;
-  background: var(--bg);
-  color: var(--text);
-  outline: none;
-  -webkit-appearance: none;
+  border-radius: 10px; font-size: 16px;
+  background: var(--bg); color: var(--text);
+  outline: none; -webkit-appearance: none;
 }
-
 .modal input:focus { border-color: var(--blue); background: #fff; }
-
 .primary-btn {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  margin-top: 14px;
-  border: none;
-  border-radius: 10px;
-  background: var(--blue);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
+  display: block; width: 100%;
+  padding: 14px; margin-top: 14px;
+  border: none; border-radius: 10px;
+  background: var(--blue); color: #fff;
+  font-size: 16px; font-weight: 600; cursor: pointer;
 }
+.trade-hint { font-size: 12px; color: var(--sub); margin: 4px 2px; }
 
-.trade-hint {
-  font-size: 12px;
-  color: var(--sub);
-  margin: 4px 2px;
-}
-
-/* ── Autocomplete ─────────────────────────── */
+/* ── Autocomplete ─────────────────────────────────── */
 .autocomplete-wrap { position: relative; }
-
 .suggest-list {
-  display: none;
-  position: absolute;
-  left: 0; right: 0;
-  top: calc(100% - 6px);
+  display: none; position: absolute;
+  left: 0; right: 0; top: calc(100% - 6px);
   background: var(--card);
-  border: 1px solid var(--border);
-  border-top: none;
+  border: 1px solid var(--border); border-top: none;
   border-radius: 0 0 10px 10px;
-  max-height: 210px;
-  overflow-y: auto;
+  max-height: 210px; overflow-y: auto;
   z-index: 200;
   box-shadow: 0 8px 20px rgba(0,0,0,.12);
 }
-
 .suggest-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 14px;
-  font-size: 14px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
+  display: flex; justify-content: space-between;
+  padding: 10px 14px; font-size: 14px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
 }
-
 .suggest-item:last-child { border-bottom: none; }
 .suggest-item:active { background: var(--bg); }
 .suggest-price { color: var(--blue); font-weight: 600; }
-
-/* ── Transaction action buttons ───────────── */
-.tx-actions {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-}
-
-.tx-edit-btn, .tx-del-btn {
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.tx-edit-btn {
-  background: #e8f0ff;
-  color: var(--blue);
-}
-
-.tx-del-btn {
-  background: #fff0f0;
-  color: var(--red);
-}

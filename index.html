@@ -2,33 +2,44 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <title>股票資產管理</title>
+  <title>資產管理</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="股票管理">
+  <meta name="apple-mobile-web-app-title" content="資產管理">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="theme-color" content="#007aff">
 </head>
 <body>
 
-<div id="mainView">
-
-  <!-- TopBar -->
+<!-- ══ PAGE: 目標（空殼）══ -->
+<div id="page-goals" class="page hidden">
   <div class="topbar">
-    <span class="topbar-title">股票資產管理</span>
-    <button class="add-btn" onclick="openAddStock()">＋</button>
+    <span class="topbar-title">目標</span>
   </div>
+  <div class="empty-tip" style="margin-top:60px">開發中</div>
+</div>
 
-  <!-- 股價狀態 -->
+<!-- ══ PAGE: 餘額（空殼）══ -->
+<div id="page-balance" class="page hidden">
+  <div class="topbar">
+    <span class="topbar-title">餘額</span>
+  </div>
+  <div class="empty-tip" style="margin-top:60px">開發中</div>
+</div>
+
+<!-- ══ PAGE: 股票 ══ -->
+<div id="page-stocks" class="page hidden">
+  <div class="topbar">
+    <span class="topbar-title">股票</span>
+    <button class="add-btn" onclick="openAddStock('stocks')">＋</button>
+  </div>
   <div class="status-bar">
     <span id="priceStatusText">載入中…</span>
     <button class="refresh-btn" onclick="doRefresh()">重新抓取</button>
   </div>
-
-  <!-- 主表格 -->
   <div class="main-card">
     <div class="table-header">
       <span>股名</span>
@@ -36,70 +47,116 @@
       <span class="col-r">總損益</span>
       <span class="col-chev"></span>
     </div>
-
-    <div id="stockRows"></div>
-
-    <!-- 統計列 -->
-    <div class="summary-block" id="summaryBlock" style="display:none">
+    <div id="stocks-rows"></div>
+    <div class="summary-block hidden" id="stocks-summary">
       <div class="summary-row">
-        <span class="sum-label">總預估損益</span>
-        <span id="totalPL" class="sum-val">—</span>
-        <span class="sum-label">總報酬率</span>
-        <span id="totalRate" class="sum-val">—</span>
+        <span class="sum-label">總損益</span><span id="stocks-totalPL" class="sum-val">—</span>
+        <span class="sep">|</span>
+        <span class="sum-label">總報酬率</span><span id="stocks-totalRate" class="sum-val">—</span>
       </div>
       <div class="summary-row">
-        <span class="sum-label">總預估現值</span>
-        <span id="totalValue" class="sum-val">—</span>
-        <span class="sum-label">總成本</span>
-        <span id="totalCost" class="sum-val">—</span>
+        <span class="sum-label">總現值</span><span id="stocks-totalValue" class="sum-val">—</span>
+        <span class="sep">|</span>
+        <span class="sum-label">總成本</span><span id="stocks-totalCost" class="sum-val">—</span>
       </div>
     </div>
   </div>
-
 </div>
 
-<!-- ===== 新增股票 Modal ===== -->
-<div id="addModal" class="modal-overlay hidden">
+<!-- ══ PAGE: 質押 ══ -->
+<div id="page-pledge" class="page hidden">
+  <div class="topbar">
+    <span class="topbar-title">質押股票</span>
+    <button class="add-btn" onclick="openAddStock('pledge')">＋</button>
+  </div>
+  <!-- 質押頁不顯示股價狀態，共用股票頁抓到的 priceMap -->
+  <div class="status-bar">
+    <span id="pledgeStatusText">—</span>
+  </div>
+  <div class="main-card">
+    <div class="table-header">
+      <span>股名</span>
+      <span class="col-r">股數</span>
+      <span class="col-r">總損益</span>
+      <span class="col-chev"></span>
+    </div>
+    <div id="pledge-rows"></div>
+    <div class="summary-block hidden" id="pledge-summary">
+      <div class="summary-row">
+        <span class="sum-label">總損益</span><span id="pledge-totalPL" class="sum-val">—</span>
+        <span class="sep">|</span>
+        <span class="sum-label">總報酬率</span><span id="pledge-totalRate" class="sum-val">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="sum-label">總現值</span><span id="pledge-totalValue" class="sum-val">—</span>
+        <span class="sep">|</span>
+        <span class="sum-label">總成本</span><span id="pledge-totalCost" class="sum-val">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB BAR ══ -->
+<nav class="tab-bar">
+  <button class="tab" data-tab="goals"   onclick="switchTab('goals')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    <span>目標</span>
+  </button>
+  <button class="tab" data-tab="balance" onclick="switchTab('balance')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+    <span>餘額</span>
+  </button>
+  <button class="tab" data-tab="stocks"  onclick="switchTab('stocks')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,17 9,11 13,15 21,7"/><polyline points="14,7 21,7 21,14"/></svg>
+    <span>股票</span>
+  </button>
+  <button class="tab" data-tab="pledge"  onclick="switchTab('pledge')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
+    <span>質押</span>
+  </button>
+</nav>
+
+<!-- ══ MODAL: 新增股票（股票 & 質押共用）══ -->
+<div id="modal-addStock" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <span>新增股票</span>
-      <button class="close-btn" onclick="closeModal('addModal')">✕</button>
+      <span id="addStock-title">新增股票</span>
+      <button class="close-btn" onclick="closeModal('modal-addStock')">✕</button>
     </div>
     <div class="autocomplete-wrap">
       <input id="asCode" placeholder="股票代號（例：2330）" autocomplete="off" inputmode="numeric">
       <div id="asSuggest" class="suggest-list"></div>
     </div>
     <input id="asName" placeholder="股票名稱（自動帶入）">
-    <input id="asQty" type="text"   inputmode="decimal" placeholder="初始股數">
+    <input id="asQty" type="text" inputmode="decimal" placeholder="初始股數">
     <input id="asCost" type="number" inputmode="decimal" placeholder="付出成本（含手續費，元）">
     <button class="primary-btn" onclick="submitAddStock()">新增</button>
   </div>
 </div>
 
-<!-- ===== 買入 / 賣出 Modal ===== -->
-<div id="tradeModal" class="modal-overlay hidden">
+<!-- ══ MODAL: 買入/賣出 ══ -->
+<div id="modal-trade" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <span id="tradeTitle">買入</span>
-      <button class="close-btn" onclick="closeModal('tradeModal')">✕</button>
+      <span id="trade-title">買入</span>
+      <button class="close-btn" onclick="closeModal('modal-trade')">✕</button>
     </div>
-    <div id="tradeFields"></div>
+    <div id="trade-fields"></div>
     <button class="primary-btn" onclick="submitTrade()">確認</button>
   </div>
 </div>
 
-
-<!-- ===== 修改交易紀錄 Modal ===== -->
-<div id="editTxModal" class="modal-overlay hidden">
+<!-- ══ MODAL: 修改交易紀錄 ══ -->
+<div id="modal-editTx" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <span id="editTxTitle">修改紀錄</span>
-      <button class="close-btn" onclick="closeModal('editTxModal')">✕</button>
+      <span id="editTx-title">修改紀錄</span>
+      <button class="close-btn" onclick="closeModal('modal-editTx')">✕</button>
     </div>
-    <input id="etQty"  type="text"   inputmode="decimal" placeholder="股數">
-    <input id="etAmt"  type="number" inputmode="decimal" placeholder="金額（元）">
+    <input id="etQty" type="text" inputmode="decimal" placeholder="股數">
+    <input id="etAmt" type="number" inputmode="decimal" placeholder="金額（元）">
     <p id="etHint" class="trade-hint"></p>
-    <button class="primary-btn" onclick="submitEditTx()">儲存修改</button>
+    <button class="primary-btn" onclick="submitEditTx()">儲存</button>
   </div>
 </div>
 

@@ -720,6 +720,11 @@ function renderSettingsPage() {
   $("gh-username").value = s.username;
   $("gh-repo").value = s.repo;
   $("gh-token").value = s.token;
+
+  const lastBackup = localStorage.getItem("github_last_backup");
+
+  $("github-last-backup").textContent =
+  lastBackup ? formatDateTime(lastBackup) : "尚未備份";
 }
 
 function saveGithubSettings() {
@@ -896,7 +901,13 @@ async function backupToGithub() {
       throw new Error(`GitHub 備份失敗：HTTP ${putRes.status}`);
     }
 
-    setGithubStatus("備份完成：latest.json 已更新");
+    const now = new Date().toISOString();
+
+    localStorage.setItem("github_last_backup", now);
+
+    renderSettingsPage();
+
+    setGithubStatus("備份完成");
   } catch (err) {
     console.error(err);
     setGithubStatus(err.message || "備份失敗");
@@ -991,6 +1002,16 @@ async function restoreFromGithub() {
     console.error(err);
     setGithubStatus(err.message || "還原失敗");
   }
+}
+
+function formatDateTime(iso){
+  const d = new Date(iso);
+
+  return d.getFullYear()+"/"
+    +String(d.getMonth()+1).padStart(2,"0")+"/"
+    +String(d.getDate()).padStart(2,"0")+" "
+    +String(d.getHours()).padStart(2,"0")+":"
+    +String(d.getMinutes()).padStart(2,"0");
 }
 
 let goalSwipe = null;

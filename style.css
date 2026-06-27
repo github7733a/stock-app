@@ -956,3 +956,21 @@ html, body {
     color:var(--sub);
     line-height:1.5;
 }
+
+.settings-info{
+    margin-top:16px;
+    padding:12px;
+    border-radius:10px;
+    background:#f7f7f7;
+}
+
+.settings-info span{
+    font-size:12px;
+    color:#8e8e93;
+}
+
+#github-last-backup{
+    margin-top:4px;
+    font-size:16px;
+    font-weight:600;
+}

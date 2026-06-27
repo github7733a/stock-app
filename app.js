@@ -52,6 +52,7 @@ function switchTab(tab) {
   if (tab==="pledge")  renderStockPage("pledge");
   if (tab==="balance") renderBalancePage();
   if (tab==="goals") renderGoalPage();
+  if (tab==="settings") renderSettingsPage();
 }
 
 /* ── Modal / Overlay ────────────────────────────────────────── */
@@ -703,6 +704,293 @@ async function renderGoalPage() {
 
   $("goalRows").innerHTML = html;
   bindGoalSwipe();
+}
+
+function getGithubSettings() {
+  return {
+    username: localStorage.getItem("github_username") || "",
+    repo: localStorage.getItem("github_repo") || "",
+    token: localStorage.getItem("github_token") || ""
+  };
+}
+
+function renderSettingsPage() {
+  const s = getGithubSettings();
+
+  $("gh-username").value = s.username;
+  $("gh-repo").value = s.repo;
+  $("gh-token").value = s.token;
+}
+
+function saveGithubSettings() {
+  const username = $("gh-username").value.trim();
+  const repo = $("gh-repo").value.trim();
+  const token = $("gh-token").value.trim();
+
+  if (!username) {
+    alert("請輸入 GitHub Username");
+    return;
+  }
+
+  if (!repo) {
+    alert("請輸入 Repository");
+    return;
+  }
+
+  if (!token) {
+    alert("請輸入 GitHub Token");
+    return;
+  }
+
+  localStorage.setItem("github_username", username);
+  localStorage.setItem("github_repo", repo);
+  localStorage.setItem("github_token", token);
+
+  alert("設定已儲存");
+}
+
+function setGithubStatus(text) {
+  const el = $("githubStatus");
+  if (el) el.textContent = text || "";
+}
+
+function getGithubApiConfig() {
+  const s = getGithubSettings();
+
+  if (!s.username || !s.repo || !s.token) {
+    throw new Error("請先完成 GitHub 設定");
+  }
+
+  return {
+    owner: s.username,
+    repo: s.repo,
+    token: s.token,
+    path: "latest.json"
+  };
+}
+
+async function githubRequest(url, options = {}) {
+  const config = getGithubApiConfig();
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Authorization": `Bearer ${config.token}`,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(options.headers || {})
+    }
+  });
+
+  return res;
+}
+
+async function testGithubConnection() {
+  try {
+    setGithubStatus("測試連線中...");
+
+    const config = getGithubApiConfig();
+
+    const url =
+      `https://api.github.com/repos/${config.owner}/${config.repo}`;
+
+    const res = await githubRequest(url);
+
+    if (!res.ok) {
+      throw new Error(`GitHub 連線失敗：HTTP ${res.status}`);
+    }
+
+    setGithubStatus("GitHub 連線成功");
+  } catch (err) {
+    console.error(err);
+    setGithubStatus(err.message || "GitHub 連線失敗");
+  }
+}
+
+async function exportAllData() {
+  await Promise.all([financeReady, dbsReady, goalReady]);
+
+  const financeAccounts = await idb.all(financeDb, "accounts");
+  const financeTransactions = await idb.all(financeDb, "transactions");
+
+  const stockStocks = await idb.all(stockDb, "stocks");
+  const stockTransactions = await idb.all(stockDb, "transactions");
+
+  const pledgeStocks = await idb.all(pledgeDb, "stocks");
+  const pledgeTransactions = await idb.all(pledgeDb, "transactions");
+
+  const goals = await idb.all(goalDb, "goals");
+
+  return {
+    app: "stock-app",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    finance: {
+      accounts: financeAccounts,
+      transactions: financeTransactions
+    },
+    stocks: {
+      stocks: stockStocks,
+      transactions: stockTransactions
+    },
+    pledge: {
+      stocks: pledgeStocks,
+      transactions: pledgeTransactions
+    },
+    goals: {
+      goals
+    }
+  };
+}
+
+function encodeBase64Unicode(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+function decodeBase64Unicode(str) {
+  return decodeURIComponent(escape(atob(str)));
+}
+
+async function backupToGithub() {
+  try {
+    setGithubStatus("正在產生備份...");
+
+    const config = getGithubApiConfig();
+    const backup = await exportAllData();
+    const json = JSON.stringify(backup, null, 2);
+
+    const apiUrl =
+      `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`;
+
+    let sha = null;
+
+    setGithubStatus("正在檢查 GitHub 備份檔...");
+
+    const getRes = await githubRequest(apiUrl);
+
+    if (getRes.ok) {
+      const file = await getRes.json();
+      sha = file.sha;
+    } else if (getRes.status !== 404) {
+      throw new Error(`讀取備份檔失敗：HTTP ${getRes.status}`);
+    }
+
+    const body = {
+      message: `backup ${new Date().toISOString()}`,
+      content: encodeBase64Unicode(json)
+    };
+
+    if (sha) body.sha = sha;
+
+    setGithubStatus("正在上傳到 GitHub...");
+
+    const putRes = await githubRequest(apiUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!putRes.ok) {
+      throw new Error(`GitHub 備份失敗：HTTP ${putRes.status}`);
+    }
+
+    setGithubStatus("備份完成：latest.json 已更新");
+  } catch (err) {
+    console.error(err);
+    setGithubStatus(err.message || "備份失敗");
+  }
+}
+
+async function clearStore(db, storeName) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    const store = tx.objectStore(storeName);
+    store.clear();
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function importRecords(db, storeName, records) {
+  if (!Array.isArray(records)) return;
+
+  for (const rec of records) {
+    await idb.put(db, storeName, rec);
+  }
+}
+
+async function importAllData(data) {
+  await Promise.all([financeReady, dbsReady, goalReady]);
+
+  if (!data || data.app !== "stock-app") {
+    throw new Error("備份檔格式不正確");
+  }
+
+  await clearStore(financeDb, "accounts");
+  await clearStore(financeDb, "transactions");
+
+  await clearStore(stockDb, "stocks");
+  await clearStore(stockDb, "transactions");
+
+  await clearStore(pledgeDb, "stocks");
+  await clearStore(pledgeDb, "transactions");
+
+  await clearStore(goalDb, "goals");
+
+  await importRecords(financeDb, "accounts", data.finance?.accounts || []);
+  await importRecords(financeDb, "transactions", data.finance?.transactions || []);
+
+  await importRecords(stockDb, "stocks", data.stocks?.stocks || []);
+  await importRecords(stockDb, "transactions", data.stocks?.transactions || []);
+
+  await importRecords(pledgeDb, "stocks", data.pledge?.stocks || []);
+  await importRecords(pledgeDb, "transactions", data.pledge?.transactions || []);
+
+  await importRecords(goalDb, "goals", data.goals?.goals || []);
+}
+
+async function restoreFromGithub() {
+  try {
+    if (!confirm("確定要從 GitHub 還原？目前手機內資料會被覆蓋。")) {
+      return;
+    }
+
+    setGithubStatus("正在從 GitHub 下載備份...");
+
+    const config = getGithubApiConfig();
+
+    const apiUrl =
+      `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`;
+
+    const res = await githubRequest(apiUrl);
+
+    if (!res.ok) {
+      throw new Error(`讀取 GitHub 備份失敗：HTTP ${res.status}`);
+    }
+
+    const file = await res.json();
+    const base64 = String(file.content || "").replace(/\n/g, "");
+    const json = decodeBase64Unicode(base64);
+    const data = JSON.parse(json);
+
+    setGithubStatus("正在還原資料...");
+
+    await importAllData(data);
+
+    setGithubStatus("還原完成");
+
+    if (currentTab === "balance") renderBalancePage();
+    if (currentTab === "stocks") renderStockPage("stocks");
+    if (currentTab === "pledge") renderStockPage("pledge");
+    if (currentTab === "goals") renderGoalPage();
+
+  } catch (err) {
+    console.error(err);
+    setGithubStatus(err.message || "還原失敗");
+  }
 }
 
 let goalSwipe = null;

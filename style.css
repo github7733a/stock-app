@@ -893,3 +893,66 @@ html, body {
     font-size:15px;
     font-weight:700;
 }
+
+.settings-card{
+    padding:14px;
+}
+
+.settings-row{
+    margin-bottom:14px;
+}
+
+.settings-row label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    color:var(--sub);
+    margin-bottom:6px;
+}
+
+.settings-row input{
+    width:100%;
+    padding:13px 14px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--bg);
+    font-size:16px;
+    color:var(--text);
+    outline:none;
+}
+
+.settings-row input:focus{
+    border-color:var(--blue);
+    background:#fff;
+}
+
+.settings-action-btn{
+    width:100%;
+    padding:13px;
+    margin-top:10px;
+    border:1px solid var(--blue);
+    border-radius:10px;
+    background:#fff;
+    color:var(--blue);
+    font-size:15px;
+    font-weight:700;
+}
+
+.settings-danger-btn{
+    width:100%;
+    padding:13px;
+    margin-top:10px;
+    border:none;
+    border-radius:10px;
+    background:#fff0f0;
+    color:var(--red);
+    font-size:15px;
+    font-weight:700;
+}
+
+.settings-status{
+    margin-top:12px;
+    font-size:13px;
+    color:var(--sub);
+    line-height:1.5;
+}

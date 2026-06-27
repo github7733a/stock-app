@@ -133,6 +133,38 @@
   </div>
 </div>
 
+<!-- ══ PAGE: 設定 ══ -->
+<div id="page-settings" class="page hidden">
+  <div class="topbar">
+    <span class="topbar-title">設定</span>
+  </div>
+
+  <div class="main-card settings-card">
+    <div class="settings-row">
+      <label>GitHub Username</label>
+      <input id="gh-username" placeholder="例如 github7733a">
+    </div>
+
+    <div class="settings-row">
+      <label>Repository</label>
+      <input id="gh-repo" placeholder="例如 backup">
+    </div>
+
+    <div class="settings-row">
+      <label>GitHub Token</label>
+      <input id="gh-token" type="password" placeholder="github_pat_xxx">
+    </div>
+
+    <button class="primary-btn" onclick="saveGithubSettings()">儲存設定</button>
+
+    <button class="settings-action-btn" onclick="testGithubConnection()">測試連線</button>
+    <button class="settings-action-btn" onclick="backupToGithub()">備份到 GitHub</button>
+    <button class="settings-danger-btn" onclick="restoreFromGithub()">從 GitHub 還原</button>
+
+    <div id="githubStatus" class="settings-status"></div>
+  </div>
+</div>
+
 <!-- ══ TAB BAR ══ -->
 <nav class="tab-bar">
   <button class="tab" data-tab="goals" onclick="switchTab('goals')">
@@ -151,6 +183,13 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
     <span>質押</span>
   </button>
+  <button class="tab" data-tab="settings" onclick="switchTab('settings')">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+  </svg>
+  <span>設定</span>
+</button>
 </nav>
 
 <!-- ══ MODAL: 新增股票（股票 & 質押共用）══ -->

@@ -160,6 +160,29 @@
       <div id="github-last-backup">尚未備份</div>
     </div>
 
+    <div class="settings-info auto-backup-box">
+      <div class="settings-switch-row">
+        <div>
+          <div class="settings-switch-title">自動備份</div>
+          <div class="settings-switch-sub">開啟 App 時自動檢查</div>
+        </div>
+
+        <label class="ios-switch">
+          <input id="gh-auto-backup" type="checkbox">
+          <span></span>
+        </label>
+      </div>
+
+      <div class="settings-row auto-days-row">
+        <label>備份頻率</label>
+        <div class="auto-days-input">
+          <span>每</span>
+          <input id="gh-backup-days" type="number" min="1" value="3">
+          <span>天備份一次</span>
+        </div>
+      </div>
+    </div>
+
     <button class="primary-btn" onclick="saveGithubSettings()">儲存設定</button>
 
     <button class="settings-action-btn" onclick="testGithubConnection()">測試連線</button>

@@ -974,3 +974,83 @@ html, body {
     font-size:16px;
     font-weight:600;
 }
+
+.settings-switch-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+}
+
+.settings-switch-title{
+    font-size:16px;
+    font-weight:700;
+}
+
+.settings-switch-sub{
+    margin-top:3px;
+    font-size:12px;
+    color:var(--sub);
+}
+
+.ios-switch{
+    position:relative;
+    width:52px;
+    height:32px;
+    flex-shrink:0;
+}
+
+.ios-switch input{
+    display:none;
+}
+
+.ios-switch span{
+    position:absolute;
+    inset:0;
+    border-radius:999px;
+    background:#d1d1d6;
+    transition:.2s;
+}
+
+.ios-switch span::before{
+    content:"";
+    position:absolute;
+    width:28px;
+    height:28px;
+    left:2px;
+    top:2px;
+    border-radius:50%;
+    background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.25);
+    transition:.2s;
+}
+
+.ios-switch input:checked + span{
+    background:var(--green);
+}
+
+.ios-switch input:checked + span::before{
+    transform:translateX(20px);
+}
+
+.auto-backup-box{
+    margin-top:14px;
+}
+
+.auto-days-row{
+    margin-top:14px;
+    margin-bottom:0;
+}
+
+.auto-days-input{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:15px;
+}
+
+.auto-days-input input{
+    width:72px;
+    padding:10px;
+    text-align:center;
+}

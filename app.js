@@ -725,6 +725,12 @@ function renderSettingsPage() {
 
   $("github-last-backup").textContent =
   lastBackup ? formatDateTime(lastBackup) : "尚未備份";
+
+  $("gh-auto-backup").checked =
+  localStorage.getItem("github_auto_backup") === "Y";
+
+$("gh-backup-days").value =
+  localStorage.getItem("github_backup_days") || "3";
 }
 
 function saveGithubSettings() {
@@ -750,6 +756,16 @@ function saveGithubSettings() {
   localStorage.setItem("github_username", username);
   localStorage.setItem("github_repo", repo);
   localStorage.setItem("github_token", token);
+
+  localStorage.setItem(
+    "github_auto_backup",
+    $("gh-auto-backup").checked ? "Y" : "N"
+  );
+
+  localStorage.setItem(
+    "github_backup_days",
+    Math.max(1, Number($("gh-backup-days").value) || 3)
+  );
 
   alert("設定已儲存");
 }
@@ -911,6 +927,45 @@ async function backupToGithub() {
   } catch (err) {
     console.error(err);
     setGithubStatus(err.message || "備份失敗");
+  }
+}
+
+let autoBackupRunning = false;
+
+async function checkAutoBackup(){
+  try{
+    if(autoBackupRunning) return;
+
+    const enabled =
+      localStorage.getItem("github_auto_backup") === "Y";
+
+    if(!enabled) return;
+
+    const lastBackup =
+      localStorage.getItem("github_last_backup");
+
+    if(!lastBackup) return;
+
+    const days =
+      Math.max(1, Number(localStorage.getItem("github_backup_days")) || 3);
+
+    const nextTime =
+      new Date(lastBackup).getTime() + days * 24 * 60 * 60 * 1000;
+
+    if(Date.now() < nextTime) return;
+
+    const s = getGithubSettings();
+
+    if(!s.username || !s.repo || !s.token) return;
+
+    autoBackupRunning = true;
+
+    await backupToGithub();
+
+  }catch(err){
+    console.warn("auto backup skipped", err);
+  }finally{
+    autoBackupRunning = false;
   }
 }
 
@@ -1808,4 +1863,9 @@ async function deleteFinanceTx(txId) {
   await updatePricesInDB("pledge");
   renderStockPage("stocks");
   renderStockPage("pledge");
+  checkAutoBackup();
 })();
+
+window.addEventListener("focus", () => {
+  checkAutoBackup();
+});

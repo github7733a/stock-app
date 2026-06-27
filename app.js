@@ -646,40 +646,52 @@ async function renderGoalPage() {
     html += `
     <div class="goal-item">
 
-        <div class="goal-edit-btn"
-            onclick="event.stopPropagation();openGoalModal(${g.id})">
-            編輯
-        </div>
-
         <div class="goal-row" data-id="${g.id}">
 
-            <div class="goal-icon">
+            <div class="goal-left">
 
-                <div class="goal-ring"
-                    style="--p:${progress};">
+                <div class="goal-icon">
+
+                    <div class="goal-ring"
+                        style="--p:${progress};">
+                    </div>
+
+                    <img src="target.png">
+
                 </div>
 
-                <img src="target.png">
+                <div class="goal-main">
+
+                    <div class="goal-name">
+                        ${g.name}
+                        ${progress >= 1 ? '<span class="goal-done">✅</span>' : ''}
+                    </div>
+
+                </div>
 
             </div>
 
-            <div class="goal-main">
+            <div class="goal-right-wrap">
 
-                <div class="goal-name">
-                    ${g.name}
-                    ${progress >= 1 ? '<span class="goal-done">✅</span>' : ''}
-                </div>
+                <button class="goal-edit-btn"
+                    onclick="event.stopPropagation();openGoalModal(${g.id})">
+                    編輯
+                </button>
 
-            </div>
+                <div class="goal-right-swipe">
 
-            <div class="goal-values">
+                    <div class="goal-values">
 
-                <div class="${current<0?"neg":""}">
-                    ${fmtMoney(current)}
-                </div>
+                        <div class="${current<0?"neg":""}">
+                            ${fmtMoney(current)}
+                        </div>
 
-                <div class="goal-target">
-                    ${fmtMoney(target)}
+                        <div class="goal-target">
+                            ${fmtMoney(target)}
+                        </div>
+
+                    </div>
+
                 </div>
 
             </div>
@@ -695,46 +707,92 @@ async function renderGoalPage() {
 
 let goalSwipe = null;
 
+let openedGoalSwipe = null;
+
+function closeOpenedGoalSwipe(){
+    if(openedGoalSwipe){
+        openedGoalSwipe.style.transform = "translateX(0)";
+        openedGoalSwipe = null;
+    }
+}
+
 function bindGoalSwipe(){
 
-    document.querySelectorAll(".goal-row").forEach(row=>{
+    document.querySelectorAll(".goal-right-swipe").forEach(swipe=>{
 
-        let startX=0;
-        let current=0;
+        let startX = 0;
+        let startY = 0;
+        let dx = 0;
+        let dy = 0;
+        let dragging = false;
 
-        row.onpointerdown=e=>{
+        swipe.onpointerdown = e => {
+            startX = e.clientX;
+            startY = e.clientY;
+            dx = 0;
+            dy = 0;
+            dragging = true;
 
-            startX=e.clientX;
-            current=0;
-        };
-
-        row.onpointermove=e=>{
-
-            current=e.clientX-startX;
-
-            if(current<0){
-
-                row.style.transform=
-                    `translateX(${Math.max(current,-78)}px)`;
+            if(openedGoalSwipe && openedGoalSwipe !== swipe){
+                closeOpenedGoalSwipe();
             }
         };
 
-        row.onpointerup=()=>{
+        swipe.onpointermove = e => {
+            if(!dragging) return;
 
-            if(current<-40){
+            dx = e.clientX - startX;
+            dy = e.clientY - startY;
 
-                row.style.transform="translateX(-78px)";
-                goalSwipe=row;
+            // 垂直滑動就讓頁面正常捲動
+            if(Math.abs(dy) > Math.abs(dx)){
+                return;
+            }
 
+            e.preventDefault();
+
+            // 左滑打開，右滑收回
+            const currentOpen = openedGoalSwipe === swipe ? -72 : 0;
+            let next = currentOpen + dx;
+
+            next = Math.min(0, Math.max(next, -72));
+
+            swipe.style.transform = `translateX(${next}px)`;
+        };
+
+        swipe.onpointerup = () => {
+            if(!dragging) return;
+            dragging = false;
+
+            if(dx < -35){
+                closeOpenedGoalSwipe();
+                swipe.style.transform = "translateX(-72px)";
+                openedGoalSwipe = swipe;
+            }else if(dx > 25){
+                swipe.style.transform = "translateX(0)";
+                if(openedGoalSwipe === swipe){
+                    openedGoalSwipe = null;
+                }
             }else{
-
-                row.style.transform="translateX(0)";
+                if(openedGoalSwipe === swipe){
+                    swipe.style.transform = "translateX(-72px)";
+                }else{
+                    swipe.style.transform = "translateX(0)";
+                }
             }
         };
 
+        swipe.onpointercancel = () => {
+            dragging = false;
+        };
     });
-
 }
+
+document.addEventListener("pointerdown", e => {
+    if(!e.target.closest(".goal-row")){
+        closeOpenedGoalSwipe();
+    }
+});
 
 async function openGoalModal(goalId) {
   editingGoalId = goalId || null;

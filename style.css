@@ -795,3 +795,101 @@ html, body {
     font-size:15px;
     font-weight:600;
 }
+
+.goal-item{
+    overflow:hidden;
+    border-bottom:1px solid var(--border);
+}
+
+.goal-item:last-child{
+    border-bottom:none;
+}
+
+.goal-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:12px 14px;
+    background:var(--card);
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+}
+
+.goal-left{
+    flex:1;
+    min-width:0;
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+
+.goal-main{
+    flex:1;
+    min-width:0;
+    display:flex;
+    align-items:center;
+    height:44px;
+}
+
+.goal-name{
+    font-size:17px;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.goal-right-wrap{
+    position:relative;
+    width:120px;
+    height:44px;
+    flex-shrink:0;
+    overflow:hidden;
+}
+
+.goal-right-swipe{
+    position:absolute;
+    left:0;
+    top:0;
+    width:120px;
+    height:44px;
+
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+
+    background:var(--card);
+    z-index:2;
+
+    transition:transform .22s ease;
+    touch-action:pan-y;
+}
+
+.goal-values{
+    text-align:right;
+    line-height:1.25;
+}
+
+.goal-values div:first-child{
+    font-weight:700;
+    font-size:18px;
+}
+
+.goal-target{
+    font-size:15px;
+    color:var(--sub);
+}
+
+.goal-edit-btn{
+    position:absolute;
+    right:0;
+    top:0;
+    width:72px;
+    height:44px;
+
+    border:none;
+    background:var(--blue);
+    color:white;
+    font-size:15px;
+    font-weight:700;
+}

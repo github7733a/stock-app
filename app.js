@@ -646,7 +646,7 @@ async function renderGoalPage() {
     html += `
     <div class="goal-item">
 
-        <div class="goal-row" data-id="${g.id}">
+        <div class="goal-row" data-id="${g.id}" onclick="openGoalTrend(${g.id})">
 
             <div class="goal-left">
 
@@ -732,6 +732,7 @@ function bindGoalSwipe(){
             dx = 0;
             dy = 0;
             dragging = true;
+            swipe.dataset.swiped = "0";
 
             if(openedGoalSwipe && openedGoalSwipe !== swipe){
                 closeOpenedGoalSwipe();
@@ -743,6 +744,10 @@ function bindGoalSwipe(){
 
             dx = e.clientX - startX;
             dy = e.clientY - startY;
+
+            if(Math.abs(dx) > 6){
+                swipe.dataset.swiped = "1";
+            }
 
             // 垂直滑動就讓頁面正常捲動
             if(Math.abs(dy) > Math.abs(dx)){
@@ -785,6 +790,14 @@ function bindGoalSwipe(){
         swipe.onpointercancel = () => {
             dragging = false;
         };
+
+        swipe.onclick = e => {
+            if(swipe.dataset.swiped === "1"){
+                e.preventDefault();
+                e.stopPropagation();
+                swipe.dataset.swiped = "0";
+            }
+        };
     });
 }
 
@@ -793,6 +806,11 @@ document.addEventListener("pointerdown", e => {
         closeOpenedGoalSwipe();
     }
 });
+
+function openGoalTrend(goalId) {
+  closeOpenedGoalSwipe();
+  location.href = `trend.html?goalId=${goalId}`;
+}
 
 async function openGoalModal(goalId) {
   editingGoalId = goalId || null;
@@ -1472,7 +1490,9 @@ async function deleteFinanceTx(txId) {
   await Promise.all([dbsReady, financeReady, goalReady]);
   bindQtyFormat($("asQty")); bindQtyFormat($("etQty"));
 
-  switchTab("stocks");
+  switchTab("stocks");const tab = new URLSearchParams(location.search).get("tab");
+
+  switchTab(tab || "stocks");
 
   priceMap=await fetchPrices();
   await updatePricesInDB("stocks");

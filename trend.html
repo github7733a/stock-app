@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>目標趨勢</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="trend.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="資產管理">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#007aff">
+</head>
+<body>
+  <div class="trend-page">
+    <div class="trend-topbar">
+      <button class="trend-back-btn" onclick="goBackToGoals()">‹ 返回</button>
+      <div class="trend-title" id="trendTitle">目標趨勢</div>
+      <div class="trend-spacer"></div>
+    </div>
+
+    <div class="trend-range-card">
+      <div class="trend-range-row">
+        <label class="trend-date-label" for="trendStartDate">開始日期</label>
+        <input id="trendStartDate" class="trend-date-input" type="date">
+      </div>
+      <div class="trend-end-text">~ 截至今日 <span id="trendTodayText">—</span></div>
+    </div>
+
+    <div class="trend-chart-card">
+      <canvas id="goalTrendChart"></canvas>
+      <div class="trend-empty hidden" id="trendEmptyText">尚無可顯示資料</div>
+    </div>
+  </div>
+
+  <script src="trend.js"></script>
+</body>
+</html>

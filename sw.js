@@ -1,6 +1,6 @@
 /* Service Worker - 快取 shell，股價每次重新從網路抓 */
-const CACHE = "stock-app-v1";
-const SHELL = ["./", "./index.html", "./app.js", "./style.css", "./manifest.json",
+const CACHE = "stock-app-v2";
+const SHELL = ["./", "./index.html", "./app.js", "./style.css", "./trend.html", "./trend.js", "./trend.css", "./manifest.json",
                "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", e => {

@@ -676,3 +676,122 @@ html, body {
   font-weight: 700;
   color: var(--blue);
 }
+
+/* ══ 目標進度圖示 ═════════════════════════════════════ */
+
+.goal-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:12px 14px;
+}
+
+.goal-main{
+    flex:1;
+    display:flex;
+    align-items:center;
+    min-width:0;
+}
+
+.goal-name{
+    font-size:17px;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.goal-values{
+    text-align:right;
+    line-height:1.25;
+}
+
+.goal-values div:first-child{
+    font-weight:700;
+    font-size:18px;
+}
+
+.goal-target{
+    font-size:15px;
+    color:var(--sub);
+}
+
+/* ===== 目標圖示 ===== */
+
+.goal-icon{
+    position:relative;
+    width:44px;
+    height:44px;
+    flex-shrink:0;
+}
+
+.goal-ring{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+
+    background:
+        conic-gradient(
+            var(--green) calc(var(--p) * 360deg),
+            #e5e5ea 0
+        );
+}
+
+.goal-ring::after{
+    content:"";
+    position:absolute;
+    inset:4px;
+    background:white;
+    border-radius:50%;
+}
+
+.goal-icon img{
+    position:absolute;
+    left:50%;
+    top:50%;
+
+    width:26px;
+    height:26px;
+
+    transform:translate(-50%,-50%);
+    z-index:2;
+}
+
+.goal-done{
+    margin-left:6px;
+    font-size:16px;
+}
+
+.goal-item{
+    position:relative;
+    overflow:hidden;
+    border-bottom:1px solid #ececf1;
+}
+
+.goal-item:last-child{
+    border-bottom:none;
+}
+
+.goal-row{
+    position:relative;
+    background:#fff;
+    transition:transform .25s;
+    z-index:2;
+}
+
+.goal-edit-btn{
+    position:absolute;
+    top:0;
+    right:0;
+    width:78px;
+    height:100%;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    background:#007aff;
+    color:#fff;
+    font-size:15px;
+    font-weight:600;
+}

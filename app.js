@@ -634,16 +634,106 @@ async function renderGoalPage() {
     const current = await calcGoalCurrent(g.selectedItems || []);
     const target = Number(g.targetAmount) || 0;
 
-    html += `<div class="goal-row" onclick="openGoalModal(${g.id})">
-      <div class="goal-name">${g.name}</div>
-      <div class="goal-values">
-        <div class="${current < 0 ? "neg" : ""}">${fmtMoney(current)}</div>
-        <div class="goal-target">${fmtMoney(target)}</div>
-      </div>
+    let progress = 0;
+
+    if (target > 0) {
+        progress = Math.min(
+            Math.max(current / target, 0),
+            1
+        );
+    }
+
+    html += `
+    <div class="goal-item">
+
+        <div class="goal-edit-btn"
+            onclick="event.stopPropagation();openGoalModal(${g.id})">
+            編輯
+        </div>
+
+        <div class="goal-row" data-id="${g.id}">
+
+            <div class="goal-icon">
+
+                <div class="goal-ring"
+                    style="--p:${progress};">
+                </div>
+
+                <img src="target.png">
+
+            </div>
+
+            <div class="goal-main">
+
+                <div class="goal-name">
+                    ${g.name}
+                    ${progress >= 1 ? '<span class="goal-done">✅</span>' : ''}
+                </div>
+
+            </div>
+
+            <div class="goal-values">
+
+                <div class="${current<0?"neg":""}">
+                    ${fmtMoney(current)}
+                </div>
+
+                <div class="goal-target">
+                    ${fmtMoney(target)}
+                </div>
+
+            </div>
+
+        </div>
+
     </div>`;
   }
 
   $("goalRows").innerHTML = html;
+  bindGoalSwipe();
+}
+
+let goalSwipe = null;
+
+function bindGoalSwipe(){
+
+    document.querySelectorAll(".goal-row").forEach(row=>{
+
+        let startX=0;
+        let current=0;
+
+        row.onpointerdown=e=>{
+
+            startX=e.clientX;
+            current=0;
+        };
+
+        row.onpointermove=e=>{
+
+            current=e.clientX-startX;
+
+            if(current<0){
+
+                row.style.transform=
+                    `translateX(${Math.max(current,-78)}px)`;
+            }
+        };
+
+        row.onpointerup=()=>{
+
+            if(current<-40){
+
+                row.style.transform="translateX(-78px)";
+                goalSwipe=row;
+
+            }else{
+
+                row.style.transform="translateX(0)";
+            }
+        };
+
+    });
+
 }
 
 async function openGoalModal(goalId) {

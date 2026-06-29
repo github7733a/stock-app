@@ -1634,12 +1634,23 @@ async function openEditAccountBasic(id) {
   const acc = await idb.get(financeDb, "accounts", id);
   if (!acc) return;
 
+  $("edit-account-title").textContent = "修改初始餘額";
+
   $("edit-acc-name").value = acc.name;
-  $("edit-acc-balance").value = acc.balance < 0
-    ? `(${Math.abs(acc.balance)})`
-    : String(acc.balance);
+
+  const txs = await idb.idx(financeDb, "transactions", "accountId", id);
+  const initTx = txs.find(t => t.type === "init");
+
+  const initAmount = initTx
+    ? Number(initTx.amount) || 0
+    : Number(acc.balance) || 0;
+
+  $("edit-acc-balance").value = initAmount < 0
+    ? `(${Math.abs(initAmount)})`
+    : String(initAmount);
 
   selectEditAccType(acc.type || "asset");
+
   openModal("modal-editAccount");
 }
 
@@ -1804,6 +1815,12 @@ async function openEditFinanceTx(txId) {
 
   const tx = await idb.get(financeDb, "transactions", txId);
   if (!tx) return;
+
+  // 初始餘額其實是在修改帳戶基本資料
+  if (tx.type === "init") {
+    openEditAccountBasic(tx.accountId);
+    return;
+  }
 
   const accounts = await idb.all(financeDb, "accounts");
   const accOpts = accounts.map(a =>

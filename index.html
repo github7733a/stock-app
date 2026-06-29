@@ -292,24 +292,24 @@
   </div>
 </div>
 
-<!-- ══ MODAL: 修改帳號 ══ -->
+<!-- ══ MODAL: 修改帳戶初始設定 ══ -->
 <div id="modal-editAccount" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <span>修改帳號</span>
+      <span id="edit-account-title">修改初始餘額</span>
       <button class="close-btn" onclick="closeModal('modal-editAccount')">✕</button>
     </div>
 
-    <input id="edit-acc-name" placeholder="帳號名稱">
+    <input id="edit-acc-name" placeholder="帳戶名稱（例：銀行存款、房貸）">
 
     <div class="type-selector">
-      <button class="type-btn active" id="acc-type-asset" onclick="selectAccType('asset')">資產</button>
-      <button class="type-btn" id="acc-type-liability" onclick="selectAccType('liability')">負債</button>
-      <button class="type-btn" id="acc-type-loan" onclick="selectAccType('loan')">借款</button>
+      <button class="type-btn active" id="edit-acc-type-asset" onclick="selectEditAccType('asset')">資產</button>
+      <button class="type-btn" id="edit-acc-type-liability" onclick="selectEditAccType('liability')">負債</button>
+      <button class="type-btn" id="edit-acc-type-loan" onclick="selectEditAccType('loan')">借款</button>
     </div>
 
     <div class="money-input-row">
-      <input id="edit-acc-balance" type="text" inputmode="decimal" placeholder="餘額，可輸入 1000 或 (1000)">
+      <input id="edit-acc-balance" type="text" inputmode="decimal" placeholder="初始餘額，可輸入 1000 或 (1000)">
       <button type="button" class="minus-toggle-btn" onclick="toggleEditAccNegative()">−</button>
     </div>
 

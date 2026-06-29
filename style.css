@@ -1109,3 +1109,29 @@ html, body {
 .acc-group-title .neg {
   color: var(--green);
 }
+
+.acc-group-title{
+    padding:10px 16px;
+    font-size:14px;
+    font-weight:700;
+}
+
+.acc-group-title span:last-child{
+    font-size:15px;
+    font-weight:700;
+}
+
+.acc-row-stack{
+    padding:10px 16px;
+}
+
+.acc-row-stack .acc-name{
+    font-size:16px;
+    font-weight:600;
+    margin-bottom:2px;
+}
+
+.acc-row-stack .acc-bal{
+    font-size:15px;
+    font-weight:600;
+}

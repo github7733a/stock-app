@@ -120,6 +120,15 @@ async function getStockTotal(ctx) {   // 供餘額頁讀取市值
   const stocks=await idb.all(db,"stocks");
   return stocks.reduce((s,st)=>s+st.qty*st.price,0);
 }
+async function getLoanTotal() {
+  await financeReady;
+
+  const accounts = await idb.all(financeDb, "accounts");
+
+  return accounts
+    .filter(a => a.type === "loan")
+    .reduce((sum, a) => sum + Math.abs(Number(a.balance) || 0), 0);
+}
 
 /* ── 股價 ───────────────────────────────────────────────────── */
 let priceMap = {};
@@ -209,29 +218,45 @@ function toggleStockEdit(ctx) {
 }
 
 async function renderStockPage(ctx) {
-  const db=getDb(ctx); if(!db) return;
-  const stocks=await idb.all(db,"stocks");
+  const db = getDb(ctx);
+  if (!db) return;
+
+  const stocks = await idb.all(db, "stocks");
   stocks.sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id));
-  const rowsEl=$(`${ctx}-rows`), sumEl=$(`${ctx}-summary`);
-  let html="",tv=0,tc=0;
-  if(!stocks.length){
-    html='<div class="empty-tip">尚未新增任何股票<br>點右上角「＋」新增</div>';
-    sumEl.classList.add("hidden");
+
+  const rowsEl = $(`${ctx}-rows`);
+  const sumEl = $(`${ctx}-summary`);
+
+  let html = "";
+  let tv = 0;
+  let tc = 0;
+
+  if (!stocks.length) {
+    html = '<div class="empty-tip">尚未新增任何股票<br>點右上角「＋」新增</div>';
+
+    if (ctx !== "pledge") {
+      sumEl.classList.add("hidden");
+    }
   } else {
-    stocks.forEach(s=>{
-      const cv=s.qty*s.price,pl=cv-s.totalCost;
-      tv+=cv;tc+=s.totalCost;
-      const isOpen=expanded[ctx]===s.id;
+    stocks.forEach(s => {
+      const cv = s.qty * s.price;
+      const pl = cv - s.totalCost;
+
+      tv += cv;
+      tc += s.totalCost;
+
+      const isOpen = expanded[ctx] === s.id;
+
       if (stockEditMode[ctx]) {
         html += `<div class="stock-item stock-edit-item" id="${ctx}-item-${s.id}" data-id="${s.id}">
           <div class="stock-row stock-edit-row">
             <button class="acc-delete-btn" onclick="event.stopPropagation(); deleteStock('${ctx}',${s.id})">✕</button>
-      
+
             <div class="stock-name-col">
               <span class="s-name">${s.name || s.code}</span>
               <span class="s-code">${s.code}</span>
             </div>
-      
+
             <span class="col-r">${fmtQty(s.qty)}</span>
             <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
             <button class="drag-handle" type="button">≡</button>
@@ -240,24 +265,87 @@ async function renderStockPage(ctx) {
       } else {
         html += `<div class="stock-item" id="${ctx}-item-${s.id}">
           <div class="stock-row" onclick="toggleDetail(${s.id},'${ctx}')">
-            <div class="stock-name-col"><span class="s-name">${s.name||s.code}</span><span class="s-code">${s.code}</span></div>
+            <div class="stock-name-col">
+              <span class="s-name">${s.name || s.code}</span>
+              <span class="s-code">${s.code}</span>
+            </div>
             <span class="col-r">${fmtQty(s.qty)}</span>
             <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
-            <span class="col-chev ${isOpen?"open":""}">›</span>
+            <span class="col-chev ${isOpen ? "open" : ""}">›</span>
           </div>
-          <div class="detail-panel ${isOpen?"":"hidden"}" id="${ctx}-panel-${s.id}">${isOpen?buildDetailHTML(s,ctx):""}</div>
+          <div class="detail-panel ${isOpen ? "" : "hidden"}" id="${ctx}-panel-${s.id}">
+            ${isOpen ? buildDetailHTML(s, ctx) : ""}
+          </div>
         </div>`;
       }
     });
-    const pl=tv-tc,rate=tc>0?(pl/tc)*100:NaN;
-    $(`${ctx}-totalPL`).textContent=fmtPL(pl);$(`${ctx}-totalPL`).className="sum-val "+pc(pl);
-    $(`${ctx}-totalRate`).textContent=fmtRate(rate);$(`${ctx}-totalRate`).className="sum-val "+pc(pl);
-    $(`${ctx}-totalValue`).textContent=fmtAmount(tv);$(`${ctx}-totalCost`).textContent=fmtAmount(tc);
+
+    const pl = tv - tc;
+    const rate = tc > 0 ? (pl / tc) * 100 : NaN;
+
+    $(`${ctx}-totalPL`).textContent = fmtPL(pl);
+    $(`${ctx}-totalPL`).className = "sum-val " + pc(pl);
+
+    $(`${ctx}-totalRate`).textContent = fmtRate(rate);
+    $(`${ctx}-totalRate`).className = "sum-val " + pc(pl);
+
+    $(`${ctx}-totalValue`).textContent = fmtAmount(tv);
+    $(`${ctx}-totalCost`).textContent = fmtAmount(tc);
+
     sumEl.classList.remove("hidden");
   }
-  rowsEl.innerHTML=html;
-  if(expanded[ctx]!=null) loadTxIntoPanel(expanded[ctx],ctx);
-  if (stockEditMode[ctx]) bindStockDragEvents(ctx);
+
+  rowsEl.innerHTML = html;
+
+  if (ctx === "pledge") {
+    const loanTotal = await getLoanTotal();
+
+    if (loanTotal > 0 || tc > 0) {
+      sumEl.classList.remove("hidden");
+
+      $(`${ctx}-totalPL`).textContent = fmtPL(tv - tc);
+      $(`${ctx}-totalPL`).className = "sum-val " + pc(tv - tc);
+
+      $(`${ctx}-totalRate`).textContent = fmtRate(tc > 0 ? ((tv - tc) / tc) * 100 : NaN);
+      $(`${ctx}-totalRate`).className = "sum-val " + pc(tv - tc);
+
+      $(`${ctx}-totalValue`).textContent = fmtAmount(tv);
+      $(`${ctx}-totalCost`).textContent = fmtAmount(tc);
+
+      await renderPledgeLoanSummary(tc);
+    } else {
+      sumEl.classList.add("hidden");
+    }
+  }
+
+  if (expanded[ctx] != null) {
+    loadTxIntoPanel(expanded[ctx], ctx);
+  }
+
+  if (stockEditMode[ctx]) {
+    bindStockDragEvents(ctx);
+  }
+}
+async function renderPledgeLoanSummary(pledgeCost) {
+  const loanTotal = await getLoanTotal();
+
+  $("pledge-loanAmount").textContent = fmtAmount(loanTotal);
+
+  const diff = loanTotal - pledgeCost;
+
+  if (diff > 0) {
+    $("pledge-loanStatusLabel").textContent = "未投入借款";
+    $("pledge-loanStatusValue").textContent = fmtAmount(diff);
+    $("pledge-loanStatusValue").className = "sum-val";
+  } else if (diff < 0) {
+    $("pledge-loanStatusLabel").textContent = "自有資金投入";
+    $("pledge-loanStatusValue").textContent = fmtAmount(Math.abs(diff));
+    $("pledge-loanStatusValue").className = "sum-val pos";
+  } else {
+    $("pledge-loanStatusLabel").textContent = "投入狀態";
+    $("pledge-loanStatusValue").textContent = "0";
+    $("pledge-loanStatusValue").className = "sum-val";
+  }
 }
 
 let draggingStockRow = null;
@@ -529,49 +617,84 @@ function closeOverlay(id) { $(id).classList.add("hidden"); }
 /* ── 餘額頁渲染 ──────────────────────────────────────────── */
 async function renderBalancePage() {
   await financeReady;
-  const accounts  = await idb.all(financeDb, "accounts");
+
+  const accounts = await idb.all(financeDb, "accounts");
   accounts.sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id));
+
   const stockVal  = await getStockTotal("stocks");
   const pledgeVal = await getStockTotal("pledge");
-  const accSum    = accounts.reduce((s, a) => s + a.balance, 0);
-  const nw        = accSum + stockVal + pledgeVal;
+
+  const accSum = accounts.reduce((s, a) => s + a.balance, 0);
+  const nw = accSum + stockVal + pledgeVal;
 
   $("nwValue").textContent = fmtMoney(nw);
-  $("nwValue").className   = "nw-value " + (nw < 0 ? "neg" : "");
+  $("nwValue").className = "nw-value " + (nw < 0 ? "neg" : "");
+
+  const groups = [
+    { type: "asset", title: "資產" },
+    { type: "liability", title: "負債" },
+    { type: "loan", title: "借款" }
+  ];
 
   let html = "";
-  accounts.forEach(a => {
-    if (balanceEditMode) {
-      html += `<div class="acc-row edit-mode-row" data-id="${a.id}">
-        <button class="acc-delete-btn" onclick="event.stopPropagation(); deleteAccountFromList(${a.id})">✕</button>
-    
-        <div class="acc-edit-main" onclick="event.stopPropagation(); openEditAccountBasic(${a.id})">
-          <span class="acc-name">${a.name}</span>
-          <span class="acc-bal ${a.balance < 0 ? "neg" : ""}">${fmtMoney(a.balance)}</span>
-        </div>
-    
-        <button class="drag-handle" type="button">≡</button>
-      </div>`;
-    } else {
-      html += `<div class="acc-row" onclick="openAccountDetail(${a.id})">
-        <span class="acc-name">${a.name}</span>
-        <span class="acc-bal ${a.balance < 0 ? "neg" : ""}">${fmtMoney(a.balance)}</span>
+
+  groups.forEach(g => {
+    const list = accounts.filter(a => (a.type || "asset") === g.type);
+    if (!list.length) return;
+
+    const groupTotal = list.reduce((sum, a) => sum + Number(a.balance || 0), 0);
+
+    html += `<div class="acc-group-title">
+      <span>${g.title}</span>
+      <span class="${groupTotal < 0 ? "neg" : ""}">${fmtMoney(groupTotal)}</span>
+    </div>`;
+
+    list.forEach(a => {
+      if (balanceEditMode) {
+        html += `<div class="acc-row edit-mode-row" data-id="${a.id}">
+          <button class="acc-delete-btn" onclick="event.stopPropagation(); deleteAccountFromList(${a.id})">✕</button>
+
+          <div class="acc-edit-main" onclick="event.stopPropagation(); openEditAccountBasic(${a.id})">
+            <span class="acc-name">${a.name}</span>
+            <span class="acc-bal ${a.balance < 0 ? "neg" : ""}">${fmtMoney(a.balance)}</span>
+          </div>
+
+          <button class="drag-handle" type="button">≡</button>
+        </div>`;
+      } else {
+        html += `<div class="acc-row acc-row-stack" onclick="openAccountDetail(${a.id})">
+          <div class="acc-name">${a.name}</div>
+          <div class="acc-bal ${a.balance < 0 ? "neg" : ""}">${fmtMoney(a.balance)}</div>
+        </div>`;
+      }
+    });
+  });
+
+  if (stockVal !== 0 || pledgeVal !== 0) {
+    const stockGroupTotal = stockVal + pledgeVal;
+
+    html += `<div class="acc-group-title">
+      <span>股票</span>
+      <span>${fmtMoney(stockGroupTotal)}</span>
+    </div>`;
+
+    if (stockVal !== 0) {
+      html += `<div class="acc-row acc-row-stack readonly-row">
+        <div class="acc-name">股票市值 <span class="ro-tag">自動</span></div>
+        <div class="acc-bal">${fmtMoney(stockVal)}</div>
       </div>`;
     }
-  });
-  if (stockVal !== 0) {
-    html += `<div class="acc-row readonly-row">
-      <span class="acc-name">股票市值 <span class="ro-tag">自動</span></span>
-      <span class="acc-bal">${fmtMoney(stockVal)}</span>
-    </div>`;
+
+    if (pledgeVal !== 0) {
+      html += `<div class="acc-row acc-row-stack readonly-row">
+        <div class="acc-name">質押市值 <span class="ro-tag">自動</span></div>
+        <div class="acc-bal">${fmtMoney(pledgeVal)}</div>
+      </div>`;
+    }
   }
-  if (pledgeVal !== 0) {
-    html += `<div class="acc-row readonly-row">
-      <span class="acc-name">質押市值 <span class="ro-tag">自動</span></span>
-      <span class="acc-bal">${fmtMoney(pledgeVal)}</span>
-    </div>`;
-  }
+
   $("accountRows").innerHTML = html || '<div class="empty-tip">尚未新增帳戶<br>點右上角「＋」新增</div>';
+
   if (balanceEditMode) bindAccountDragEvents();
 }
 
@@ -1379,6 +1502,7 @@ function selectAccType(type) {
   addAccType = type;
   $("acc-type-asset").classList.toggle("active", type === "asset");
   $("acc-type-liability").classList.toggle("active", type === "liability");
+  $("acc-type-loan").classList.toggle("active", type === "loan");
 }
 function parseMoneyInput(s) {
   s = String(s || "").trim().replace(/,/g, "");
@@ -1523,6 +1647,7 @@ function selectEditAccType(type) {
   editAccType = type;
   $("edit-acc-type-asset").classList.toggle("active", type === "asset");
   $("edit-acc-type-liability").classList.toggle("active", type === "liability");
+  $("edit-acc-type-loan").classList.toggle("active", type === "loan");
 }
 
 function toggleEditAccNegative() {

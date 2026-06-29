@@ -1054,3 +1054,58 @@ html, body {
     padding:10px;
     text-align:center;
 }
+
+/* 分類 Header */
+.acc-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 12px 16px;
+  background: #eef3ff;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+
+  font-size: 14px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.acc-group-title:first-child {
+  border-top: none;
+}
+
+.acc-group-title span:last-child {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+/* 明細改成上下排列 */
+.acc-row-stack {
+  display: block;
+  padding: 14px 16px;
+}
+
+.acc-row-stack .acc-name {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 7px;
+}
+
+.acc-row-stack .acc-bal {
+  display: block;
+  font-size: 17px;
+  font-weight: 800;
+  text-align: left;
+}
+
+/* 明細分隔線 */
+.acc-row-stack {
+  border-bottom: 1px solid var(--border);
+}
+
+/* 負數維持綠色 */
+.acc-row-stack .acc-bal.neg,
+.acc-group-title .neg {
+  color: var(--green);
+}

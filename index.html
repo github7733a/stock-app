@@ -129,6 +129,13 @@
         <span class="sep">|</span>
         <span class="sum-label">總成本</span><span id="pledge-totalCost" class="sum-val">—</span>
       </div>
+      <div class="summary-row">
+        <span class="sum-label">借款金額</span><span id="pledge-loanAmount" class="sum-val">—</span>
+      </div>
+      <div class="summary-row" id="pledge-loanStatusRow">
+        <span class="sum-label" id="pledge-loanStatusLabel">未投入借款</span>
+        <span id="pledge-loanStatusValue" class="sum-val">—</span>
+      </div>
     </div>
   </div>
 </div>
@@ -273,8 +280,9 @@
     </div>
     <input id="acc-name" placeholder="帳戶名稱（例：銀行存款、房貸）">
     <div class="type-selector">
-      <button class="type-btn active" id="acc-type-asset"    onclick="selectAccType('asset')">資產</button>
-      <button class="type-btn"        id="acc-type-liability" onclick="selectAccType('liability')">負債</button>
+      <button class="type-btn active" id="acc-type-asset" onclick="selectAccType('asset')">資產</button>
+      <button class="type-btn" id="acc-type-liability" onclick="selectAccType('liability')">負債</button>
+      <button class="type-btn" id="acc-type-loan" onclick="selectAccType('loan')">借款</button>
     </div>
     <div class="money-input-row">
       <input id="acc-init" type="text" inputmode="decimal" placeholder="初始餘額，可輸入 1000 或 (1000)">
@@ -295,8 +303,9 @@
     <input id="edit-acc-name" placeholder="帳號名稱">
 
     <div class="type-selector">
-      <button class="type-btn active" id="edit-acc-type-asset" onclick="selectEditAccType('asset')">資產</button>
-      <button class="type-btn" id="edit-acc-type-liability" onclick="selectEditAccType('liability')">負債</button>
+      <button class="type-btn active" id="acc-type-asset" onclick="selectAccType('asset')">資產</button>
+      <button class="type-btn" id="acc-type-liability" onclick="selectAccType('liability')">負債</button>
+      <button class="type-btn" id="acc-type-loan" onclick="selectAccType('loan')">借款</button>
     </div>
 
     <div class="money-input-row">

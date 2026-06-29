@@ -1816,7 +1816,7 @@ async function openEditFinanceTx(txId) {
   const tx = await idb.get(financeDb, "transactions", txId);
   if (!tx) return;
 
-  // 初始餘額其實是在修改帳戶基本資料
+  // 初始餘額改走帳戶基本資料
   if (tx.type === "init") {
     openEditAccountBasic(tx.accountId);
     return;
@@ -1832,18 +1832,29 @@ async function openEditFinanceTx(txId) {
 
   $("edit-tx-from-acc").value = tx.accountId;
   $("edit-tx-to-acc").value = tx.toAccountId || "";
+
   $("edit-tx-amount").value = Math.abs(Number(tx.amount) || 0);
   $("edit-tx-note").value = tx.note || "";
 
-  if (tx.type === "init") {
-    $("editFinanceTx-title").textContent = "修改初始餘額";
-    $("edit-finance-tx-type-row").classList.add("hidden");
+  // 修改時不可改類型
+  $("edit-finance-tx-type-row").classList.add("hidden");
+
+  // 修改時不可改帳戶
+  $("edit-tx-from-acc").disabled = true;
+  $("edit-tx-to-acc").disabled = true;
+
+  if (tx.type === "income") {
+    $("editFinanceTx-title").textContent = "修改收入";
     $("edit-tx-to-acc").classList.add("hidden");
-    editFinanceTxType = "init";
-  } else {
-    $("edit-finance-tx-type-row").classList.remove("hidden");
-    selectEditFinanceTxType(tx.type);
+  } else if (tx.type === "expense") {
+    $("editFinanceTx-title").textContent = "修改費用";
+    $("edit-tx-to-acc").classList.add("hidden");
+  } else if (tx.type === "transfer") {
+    $("editFinanceTx-title").textContent = "修改資金轉帳";
+    $("edit-tx-to-acc").classList.remove("hidden");
   }
+
+  editFinanceTxType = tx.type;
 
   openModal("modal-editFinanceTx");
 }
@@ -1919,33 +1930,14 @@ async function submitEditFinanceTx() {
     return;
   }
 
-  const fromId = Number($("edit-tx-from-acc").value);
-  if (!fromId) {
-    alert("請選擇帳戶");
-    return;
-  }
-
-  let newType = oldTx.type === "init" ? "init" : editFinanceTxType;
-  let toId = null;
-
-  if (newType === "init") {
-    toId = null;
-  } else if (newType === "transfer") {
-    toId = Number($("edit-tx-to-acc").value);
-    if (!toId || toId === fromId) {
-      alert("請選擇不同的目標帳戶");
-      return;
-    }
-  }
-
+  // 先還原舊交易影響
   await reverseFinanceTx(oldTx);
 
-  oldTx.accountId = fromId;
-  oldTx.type = newType;
+  // 只允許改金額與備註
   oldTx.amount = amount;
-  oldTx.toAccountId = toId;
   oldTx.note = $("edit-tx-note").value.trim();
 
+  // 帳戶、類型、轉入帳戶全部維持原本
   await applyFinanceTx(oldTx);
   await idb.put(financeDb, "transactions", oldTx);
 
@@ -1957,6 +1949,7 @@ async function submitEditFinanceTx() {
       $("ov-acc-balance").textContent = fmtMoney(fresh.balance);
       $("ov-acc-balance").className = "acc-balance-val " + (fresh.balance < 0 ? "neg" : "");
     }
+
     await loadAccTxList(currentAccId);
   }
 

@@ -41,6 +41,27 @@ function bindQtyFormat(el) {
 }
 
 /* ── Tab ────────────────────────────────────────────────────── */
+let activeStockSubTab = "all";
+
+function switchStockSubTab(subtab) {
+  activeStockSubTab = subtab;
+
+  ["all", "stocks", "pledge"].forEach(t => {
+    $(`stock-subtab-${t}`)?.classList.toggle("active", t === subtab);
+    $(`stock-subpage-${t}`)?.classList.toggle("hidden", t !== subtab);
+  });
+
+  const showEdit = subtab === "stocks" || subtab === "pledge";
+
+  $("stocks-edit-btn").style.display = showEdit ? "" : "none";
+  $("stocks-add-btn").style.display =
+    showEdit && stockEditMode[subtab] ? "" : "none";
+
+  if (subtab === "all") renderTotalStockPage();
+  if (subtab === "stocks") renderStockPage("stocks");
+  if (subtab === "pledge") renderStockPage("pledge");
+}
+
 let currentTab = "stocks";
 function switchTab(tab) {
   document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));
@@ -53,7 +74,7 @@ function switchTab(tab) {
 
   currentTab = tab;
 
-  if (tab==="stocks")  renderStockPage("stocks");
+  if (tab==="stocks") switchStockSubTab(activeStockSubTab || "all");
   if (tab==="pledge")  renderStockPage("pledge");
   if (tab==="balance") renderBalancePage();
   if (tab==="goals") renderGoalPage();
@@ -137,7 +158,10 @@ async function getLoanTotal() {
 
 /* ── 股價 ───────────────────────────────────────────────────── */
 let priceMap = {};
-function setStatus(t) { $("priceStatusText").textContent=t; $("pledgeStatusText").textContent=t; }
+function setStatus(t) {
+  if ($("priceStatusText")) $("priceStatusText").textContent = t;
+  if ($("pledgeStatusText")) $("pledgeStatusText").textContent = t;
+}
 
 function normalizeQuote(item) {
   if (!item||typeof item!=="object") return null;
@@ -212,8 +236,8 @@ const stockEditMode = {
 function toggleStockEdit(ctx) {
   stockEditMode[ctx] = !stockEditMode[ctx];
 
-  $(`${ctx}-edit-btn`).textContent = stockEditMode[ctx] ? "完成" : "編輯";
-  $(`${ctx}-add-btn`).style.display = stockEditMode[ctx] ? "" : "none";
+  $("stocks-edit-btn").textContent = stockEditMode[ctx] ? "完成" : "編輯";
+  $("stocks-add-btn").style.display = stockEditMode[ctx] ? "" : "none";
 
   if (stockEditMode[ctx]) {
     expanded[ctx] = null;
@@ -680,21 +704,19 @@ async function renderBalancePage() {
 
     html += `<div class="acc-group-title">
       <span>股票</span>
-      <button class="acc-group-link" onclick="renderTotalStockPage();">
-        ${fmtMoney(stockGroupTotal)}
-      </button>
+      <span>${fmtMoney(stockGroupTotal)}</span>
     </div>`;
 
-    if (stockVal !== 0) {
+   if (stockVal !== 0) {
       html += `<div class="acc-row acc-row-stack readonly-row">
-        <div class="acc-name">股票市值 <span class="ro-tag">自動</span></div>
+        <div class="acc-name">自有股票市值 <span class="ro-tag">自動</span></div>
         <div class="acc-bal">${fmtMoney(stockVal)}</div>
       </div>`;
     }
 
     if (pledgeVal !== 0) {
       html += `<div class="acc-row acc-row-stack readonly-row">
-        <div class="acc-name">質押市值 <span class="ro-tag">自動</span></div>
+        <div class="acc-name">借款股票市值 <span class="ro-tag">自動</span></div>
         <div class="acc-bal">${fmtMoney(pledgeVal)}</div>
       </div>`;
     }
@@ -784,10 +806,6 @@ async function renderTotalStockPage(e) {
     </div>
   `;
 
-  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
-  $("page-totalStock").classList.remove("hidden");
-
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
 }
 
 async function toggleTotalStockDetail(code) {
@@ -2113,9 +2131,10 @@ async function deleteFinanceTx(txId) {
   await Promise.all([dbsReady, financeReady, goalReady]);
   bindQtyFormat($("asQty")); bindQtyFormat($("etQty"));
 
-  switchTab("stocks");const tab = new URLSearchParams(location.search).get("tab");
+  const tab = new URLSearchParams(location.search).get("tab");
 
   switchTab(tab || "stocks");
+  switchStockSubTab("all");
 
   priceMap=await fetchPrices();
   await updatePricesInDB("stocks");

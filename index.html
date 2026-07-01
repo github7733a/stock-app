@@ -73,67 +73,68 @@
   <div class="topbar">
     <span class="topbar-title">股票</span>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="ghost-btn-sm" id="stocks-add-btn" onclick="openAddStock('stocks')" style="display:none">＋</button>
-      <button class="ghost-btn-sm" id="stocks-edit-btn" onclick="toggleStockEdit('stocks')">編輯</button>
+      <button class="ghost-btn-sm" id="stocks-add-btn" onclick="openAddStock(activeStockSubTab)" style="display:none">＋</button>
+      <button class="ghost-btn-sm" id="stocks-edit-btn" onclick="toggleStockEdit(activeStockSubTab)" style="display:none">編輯</button>
     </div>
   </div>
+
   <div class="status-bar">
     <span id="priceStatusText">載入中…</span>
   </div>
-  <div class="main-card">
-    <div class="table-header">
-      <span>股名</span><span class="col-r">股數</span>
-      <span class="col-r">總損益</span><span class="col-chev"></span>
-    </div>
-    <div id="stocks-rows"></div>
-    <div class="summary-block hidden" id="stocks-summary">
-      <div class="summary-row">
-        <span class="sum-label">總損益</span><span id="stocks-totalPL" class="sum-val">—</span>
-        <span class="sep">|</span>
-        <span class="sum-label">總報酬率</span><span id="stocks-totalRate" class="sum-val">—</span>
-      </div>
-      <div class="summary-row">
-        <span class="sum-label">總現值</span><span id="stocks-totalValue" class="sum-val">—</span>
-        <span class="sep">|</span>
-        <span class="sum-label">總成本</span><span id="stocks-totalCost" class="sum-val">—</span>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- ══ PAGE: 質押 ══ -->
-<div id="page-pledge" class="page hidden">
-  <div class="topbar">
-    <span class="topbar-title">質押股票</span>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="ghost-btn-sm" id="pledge-add-btn" onclick="openAddStock('pledge')" style="display:none">＋</button>
-      <button class="ghost-btn-sm" id="pledge-edit-btn" onclick="toggleStockEdit('pledge')">編輯</button>
-    </div>
+  <div class="stock-subtabs">
+    <button class="stock-subtab active" id="stock-subtab-all" onclick="switchStockSubTab('all')">全部</button>
+    <button class="stock-subtab" id="stock-subtab-stocks" onclick="switchStockSubTab('stocks')">自有</button>
+    <button class="stock-subtab" id="stock-subtab-pledge" onclick="switchStockSubTab('pledge')">借款</button>
   </div>
-  <div class="status-bar"><span id="pledgeStatusText">—</span></div>
+
   <div class="main-card">
     <div class="table-header">
       <span>股名</span><span class="col-r">股數</span>
       <span class="col-r">總損益</span><span class="col-chev"></span>
     </div>
-    <div id="pledge-rows"></div>
-    <div class="summary-block hidden" id="pledge-summary">
-      <div class="summary-row">
-        <span class="sum-label">總損益</span><span id="pledge-totalPL" class="sum-val">—</span>
-        <span class="sep">|</span>
-        <span class="sum-label">總報酬率</span><span id="pledge-totalRate" class="sum-val">—</span>
+
+    <div id="stock-subpage-all">
+      <div id="totalStockRows"></div>
+      <div class="summary-block" id="totalStockSummary"></div>
+    </div>
+
+    <div id="stock-subpage-stocks" class="hidden">
+      <div id="stocks-rows"></div>
+      <div class="summary-block hidden" id="stocks-summary">
+        <div class="summary-row">
+          <span class="sum-label">總損益</span><span id="stocks-totalPL" class="sum-val">—</span>
+          <span class="sep">|</span>
+          <span class="sum-label">總報酬率</span><span id="stocks-totalRate" class="sum-val">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-label">總現值</span><span id="stocks-totalValue" class="sum-val">—</span>
+          <span class="sep">|</span>
+          <span class="sum-label">總成本</span><span id="stocks-totalCost" class="sum-val">—</span>
+        </div>
       </div>
-      <div class="summary-row">
-        <span class="sum-label">總現值</span><span id="pledge-totalValue" class="sum-val">—</span>
-        <span class="sep">|</span>
-        <span class="sum-label">總成本</span><span id="pledge-totalCost" class="sum-val">—</span>
-      </div>
-      <div class="summary-row">
-        <span class="sum-label">借款金額</span><span id="pledge-loanAmount" class="sum-val">—</span>
-      </div>
-      <div class="summary-row" id="pledge-loanStatusRow">
-        <span class="sum-label" id="pledge-loanStatusLabel">未投入借款</span>
-        <span id="pledge-loanStatusValue" class="sum-val">—</span>
+    </div>
+
+    <div id="stock-subpage-pledge" class="hidden">
+      <div id="pledge-rows"></div>
+      <div class="summary-block hidden" id="pledge-summary">
+        <div class="summary-row">
+          <span class="sum-label">總損益</span><span id="pledge-totalPL" class="sum-val">—</span>
+          <span class="sep">|</span>
+          <span class="sum-label">總報酬率</span><span id="pledge-totalRate" class="sum-val">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-label">總現值</span><span id="pledge-totalValue" class="sum-val">—</span>
+          <span class="sep">|</span>
+          <span class="sum-label">總成本</span><span id="pledge-totalCost" class="sum-val">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="sum-label">借款金額</span><span id="pledge-loanAmount" class="sum-val">—</span>
+        </div>
+        <div class="summary-row" id="pledge-loanStatusRow">
+          <span class="sum-label" id="pledge-loanStatusLabel">未投入借款</span>
+          <span id="pledge-loanStatusValue" class="sum-val">—</span>
+        </div>
       </div>
     </div>
   </div>
@@ -212,10 +213,6 @@
   <button class="tab" data-tab="stocks" onclick="switchTab('stocks')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,17 9,11 13,15 21,7"/><polyline points="14,7 21,7 21,14"/></svg>
     <span>股票</span>
-  </button>
-  <button class="tab" data-tab="pledge" onclick="switchTab('pledge')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
-    <span>質押</span>
   </button>
   <button class="tab" data-tab="settings" onclick="switchTab('settings')">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -383,26 +380,6 @@
     <button class="danger-full-btn hidden" id="goal-delete-btn" onclick="deleteGoal()">刪除目標</button>
   </div>
 </div>
-
-  <!-- ══ PAGE: 股票總覽 ══ -->
-  <div id="page-totalStock" class="page hidden">
-    <div class="topbar">
-      <span class="topbar-title">股票總覽</span>
-    </div>
-
-    <div class="main-card">
-      <div class="table-header">
-        <span>股名</span>
-        <span class="col-r">股數</span>
-        <span class="col-r">總損益</span>
-        <span class="col-chev"></span>
-      </div>
-
-      <div id="totalStockRows"></div>
-
-      <div class="summary-block" id="totalStockSummary"></div>
-    </div>
-  </div>
 
   <div class="overlay-body">
 

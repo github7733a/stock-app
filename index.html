@@ -385,6 +385,35 @@
   </div>
 </div>
 
+<!-- ══ OVERLAY: 股票總覽 ══ -->
+<div id="overlay-totalStock" class="overlay hidden">
+  <div class="overlay-topbar">
+    <button class="back-btn" onclick="closeOverlay('overlay-totalStock')">‹ 返回</button>
+    <span class="topbar-title">股票總覽</span>
+    <span style="width:52px;"></span>
+  </div>
+
+  <div class="overlay-body">
+
+    <div class="main-card">
+
+      <div class="table-header">
+        <span>股名</span>
+        <span class="col-r">股數</span>
+        <span class="col-r">總損益</span>
+        <span class="col-chev"></span>
+      </div>
+
+      <div id="totalStockRows"></div>
+
+      <div class="summary-block" id="totalStockSummary">
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

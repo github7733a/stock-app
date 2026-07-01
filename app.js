@@ -675,7 +675,9 @@ async function renderBalancePage() {
 
     html += `<div class="acc-group-title">
       <span>股票</span>
-      <span>${fmtMoney(stockGroupTotal)}</span>
+      <button class="acc-group-link" onclick="openTotalStockOverlay(event)">
+        ${fmtMoney(stockGroupTotal)}
+      </button>
     </div>`;
 
     if (stockVal !== 0) {
@@ -696,6 +698,122 @@ async function renderBalancePage() {
   $("accountRows").innerHTML = html || '<div class="empty-tip">尚未新增帳戶<br>點右上角「＋」新增</div>';
 
   if (balanceEditMode) bindAccountDragEvents();
+}
+
+let totalStockExpanded = null;
+
+async function openTotalStockOverlay(e) {
+  if (e) e.stopPropagation();
+
+  const normalStocks = await idb.all(stockDb, "stocks");
+  const pledgeStocks = await idb.all(pledgeDb, "stocks");
+
+  const map = new Map();
+
+  [...normalStocks, ...pledgeStocks].forEach(s => {
+    const code = s.code;
+    const price = priceMap[code]?.price ?? s.price ?? 0;
+
+    if (!map.has(code)) {
+      map.set(code, {
+        code,
+        name: s.name || code,
+        qty: 0,
+        totalCost: 0,
+        price
+      });
+    }
+
+    const row = map.get(code);
+    row.qty += Number(s.qty) || 0;
+    row.totalCost += Number(s.totalCost) || 0;
+    row.price = price;
+  });
+
+  const rows = [...map.values()].sort((a, b) => a.code.localeCompare(b.code));
+
+  let totalValue = 0;
+  let totalCost = 0;
+  let html = "";
+
+  rows.forEach(s => {
+    const cv = s.qty * s.price;
+    const pl = cv - s.totalCost;
+    const isOpen = totalStockExpanded === s.code;
+
+    totalValue += cv;
+    totalCost += s.totalCost;
+
+    html += `<div class="stock-item" id="totalStock-item-${s.code}">
+      <div class="stock-row" onclick="toggleTotalStockDetail('${s.code}')">
+        <div class="stock-name-col">
+          <span class="s-name">${s.name || s.code}</span>
+          <span class="s-code">${s.code}</span>
+        </div>
+        <span class="col-r">${fmtQty(s.qty)}</span>
+        <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
+        <span class="col-chev ${isOpen ? "open" : ""}">›</span>
+      </div>
+      <div class="detail-panel ${isOpen ? "" : "hidden"}" id="totalStock-panel-${s.code}">
+        ${isOpen ? buildTotalStockDetailHTML(s) : ""}
+      </div>
+    </div>`;
+  });
+
+  const totalPL = totalValue - totalCost;
+  const totalRate = totalCost > 0 ? (totalPL / totalCost) * 100 : NaN;
+
+  $("totalStockRows").innerHTML =
+    html || '<div class="empty-tip">尚無股票資料</div>';
+
+  $("totalStockSummary").innerHTML = `
+    <div class="summary-row">
+      <span class="sum-label">總損益</span><span class="sum-val ${pc(totalPL)}">${fmtPL(totalPL)}</span>
+      <span class="sep">|</span>
+      <span class="sum-label">總報酬率</span><span class="sum-val ${pc(totalPL)}">${fmtRate(totalRate)}</span>
+    </div>
+    <div class="summary-row">
+      <span class="sum-label">總現值</span><span class="sum-val">${fmtAmount(totalValue)}</span>
+      <span class="sep">|</span>
+      <span class="sum-label">總成本</span><span class="sum-val">${fmtAmount(totalCost)}</span>
+    </div>
+  `;
+
+  openOverlay("overlay-totalStock");
+}
+
+async function toggleTotalStockDetail(code) {
+  if (totalStockExpanded === code) {
+    $(`totalStock-panel-${code}`)?.classList.add("hidden");
+    $(`totalStock-item-${code}`)?.querySelector(".col-chev")?.classList.remove("open");
+    totalStockExpanded = null;
+    return;
+  }
+
+  if (totalStockExpanded) {
+    $(`totalStock-panel-${totalStockExpanded}`)?.classList.add("hidden");
+    $(`totalStock-item-${totalStockExpanded}`)?.querySelector(".col-chev")?.classList.remove("open");
+  }
+
+  totalStockExpanded = code;
+  openTotalStockOverlay();
+}
+
+function buildTotalStockDetailHTML(s) {
+  const cv = s.qty * s.price;
+  const pl = cv - s.totalCost;
+  const avg = s.qty > 0 ? s.totalCost / s.qty : 0;
+  const rate = s.totalCost > 0 ? (pl / s.totalCost) * 100 : NaN;
+  const cls = pc(pl);
+
+  return `<div class="metrics-grid">
+    <div class="metric"><div class="m-label">成交均價</div><div class="m-val">${fmtPrice(avg)}</div></div>
+    <div class="metric"><div class="m-label">現值</div><div class="m-val">${fmtAmount(cv)}</div></div>
+    <div class="metric"><div class="m-label">市價</div><div class="m-val">${fmtPrice(s.price)}</div></div>
+    <div class="metric"><div class="m-label">預估損益</div><div class="m-val ${cls}">${fmtPL(pl)}</div></div>
+    <div class="metric"><div class="m-label">付出成本</div><div class="m-val">${fmtAmount(s.totalCost)}</div></div>
+    <div class="metric"><div class="m-label">報酬率</div><div class="m-val ${cls}">${fmtRate(rate)}</div></div>
+  </div>`;
 }
 
 let editingGoalId = null;

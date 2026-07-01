@@ -1151,3 +1151,13 @@ html, body {
 .acc-group-link:active{
   opacity:.55;
 }
+
+/* 股票總覽 Overlay 要讓底部 Tab 可以顯示 */
+#overlay-totalStock{
+  bottom:72px;
+  z-index:900;
+}
+
+.tab-bar{
+  z-index:1000;
+}

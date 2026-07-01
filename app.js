@@ -43,6 +43,7 @@ function bindQtyFormat(el) {
 /* ── Tab ────────────────────────────────────────────────────── */
 let currentTab = "stocks";
 function switchTab(tab) {
+  closeOverlay("overlay-totalStock");
   document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   $(`page-${tab}`).classList.remove("hidden");

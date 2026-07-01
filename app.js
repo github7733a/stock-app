@@ -42,6 +42,7 @@ function bindQtyFormat(el) {
 
 /* ── Tab ────────────────────────────────────────────────────── */
 let activeStockSubTab = "all";
+let totalStockEditMode = false;
 
 function switchStockSubTab(subtab) {
   activeStockSubTab = subtab;
@@ -51,11 +52,14 @@ function switchStockSubTab(subtab) {
     $(`stock-subpage-${t}`)?.classList.toggle("hidden", t !== subtab);
   });
 
-  const showEdit = subtab === "stocks" || subtab === "pledge";
+  $("stocks-edit-btn").style.display = "";
+  $("stocks-edit-btn").textContent =
+    subtab === "all"
+      ? (totalStockEditMode ? "完成" : "編輯")
+      : (stockEditMode[subtab] ? "完成" : "編輯");
 
-  $("stocks-edit-btn").style.display = showEdit ? "" : "none";
   $("stocks-add-btn").style.display =
-    showEdit && stockEditMode[subtab] ? "" : "none";
+    subtab !== "all" && stockEditMode[subtab] ? "" : "none";
 
   if (subtab === "all") renderTotalStockPage();
   if (subtab === "stocks") renderStockPage("stocks");
@@ -244,6 +248,24 @@ function toggleStockEdit(ctx) {
   }
 
   renderStockPage(ctx);
+}
+
+function toggleCurrentStockEdit() {
+  if (activeStockSubTab === "all") {
+    toggleTotalStockEdit();
+  } else {
+    toggleStockEdit(activeStockSubTab);
+  }
+}
+
+function toggleTotalStockEdit() {
+  totalStockEditMode = !totalStockEditMode;
+
+  $("stocks-edit-btn").textContent = totalStockEditMode ? "完成" : "編輯";
+  $("stocks-add-btn").style.display = "none";
+
+  totalStockExpanded = null;
+  renderTotalStockPage();
 }
 
 async function renderStockPage(ctx) {
@@ -451,6 +473,89 @@ async function saveStockSortOrder(ctx) {
   }
 
   renderStockPage(ctx);
+}
+
+let draggingTotalStockRow = null;
+
+function bindTotalStockDragEvents() {
+  document.querySelectorAll("#totalStockRows .total-stock-edit-item .drag-handle").forEach(handle => {
+    handle.addEventListener("pointerdown", e => {
+      const row = handle.closest(".total-stock-edit-item");
+      if (!row) return;
+
+      draggingTotalStockRow = row;
+      row.classList.add("dragging");
+
+      handle.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    handle.addEventListener("pointermove", e => {
+      if (!draggingTotalStockRow) return;
+
+      e.preventDefault();
+
+      const rows = [...document.querySelectorAll("#totalStockRows .total-stock-edit-item:not(.dragging)")];
+
+      const target = rows.find(row => {
+        const box = row.getBoundingClientRect();
+        return e.clientY >= box.top && e.clientY <= box.bottom;
+      });
+
+      if (!target) return;
+
+      const box = target.getBoundingClientRect();
+      const after = e.clientY > box.top + box.height / 2;
+
+      if (after) {
+        target.after(draggingTotalStockRow);
+      } else {
+        target.before(draggingTotalStockRow);
+      }
+    });
+
+    handle.addEventListener("pointerup", async () => {
+      if (!draggingTotalStockRow) return;
+
+      draggingTotalStockRow.classList.remove("dragging");
+      draggingTotalStockRow = null;
+
+      await saveTotalStockSortOrder();
+    });
+
+    handle.addEventListener("pointercancel", async () => {
+      if (!draggingTotalStockRow) return;
+
+      draggingTotalStockRow.classList.remove("dragging");
+      draggingTotalStockRow = null;
+
+      await saveTotalStockSortOrder();
+    });
+  });
+}
+
+async function saveTotalStockSortOrder() {
+  const rows = [...document.querySelectorAll("#totalStockRows .total-stock-edit-item")];
+
+  for (let i = 0; i < rows.length; i++) {
+    const code = rows[i].dataset.code;
+
+    await saveCodeSortOrder(stockDb, code, i + 1);
+    await saveCodeSortOrder(pledgeDb, code, i + 1);
+  }
+
+  renderTotalStockPage();
+}
+
+async function saveCodeSortOrder(db, code, order) {
+  const stocks = await idb.all(db, "stocks");
+
+  for (const s of stocks) {
+    if (s.code === code) {
+      s.sortOrder = order;
+      await idb.put(db, "stocks", s);
+    }
+  }
 }
 
 function buildDetailHTML(s,ctx){
@@ -747,7 +852,8 @@ async function renderTotalStockPage(e) {
         name: s.name || code,
         qty: 0,
         totalCost: 0,
-        price
+        price,
+        sortOrder: s.sortOrder ?? 999999
       });
     }
 
@@ -755,9 +861,13 @@ async function renderTotalStockPage(e) {
     row.qty += Number(s.qty) || 0;
     row.totalCost += Number(s.totalCost) || 0;
     row.price = price;
+    row.sortOrder = Math.min(row.sortOrder ?? 999999, s.sortOrder ?? 999999);
   });
 
-  const rows = [...map.values()].sort((a, b) => a.code.localeCompare(b.code));
+  const rows = [...map.values()].sort((a, b) =>
+    (a.sortOrder ?? 999999) - (b.sortOrder ?? 999999) ||
+    a.code.localeCompare(b.code)
+  );
 
   let totalValue = 0;
   let totalCost = 0;
@@ -771,20 +881,35 @@ async function renderTotalStockPage(e) {
     totalValue += cv;
     totalCost += s.totalCost;
 
-    html += `<div class="stock-item" id="totalStock-item-${s.code}">
-      <div class="stock-row" onclick="toggleTotalStockDetail('${s.code}')">
-        <div class="stock-name-col">
-          <span class="s-name">${s.name || s.code}</span>
-          <span class="s-code">${s.code}</span>
+    if (totalStockEditMode) {
+      html += `<div class="stock-item total-stock-edit-item" data-code="${s.code}">
+        <div class="stock-row stock-edit-row">
+          <div></div>
+          <div class="stock-name-col">
+            <span class="s-name">${s.name || s.code}</span>
+            <span class="s-code">${s.code}</span>
+          </div>
+          <span class="col-r">${fmtQty(s.qty)}</span>
+          <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
+          <button class="drag-handle" type="button">≡</button>
         </div>
-        <span class="col-r">${fmtQty(s.qty)}</span>
-        <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
-        <span class="col-chev ${isOpen ? "open" : ""}">›</span>
-      </div>
-      <div class="detail-panel ${isOpen ? "" : "hidden"}" id="totalStock-panel-${s.code}">
-        ${isOpen ? buildTotalStockDetailHTML(s) : ""}
-      </div>
-    </div>`;
+      </div>`;
+    } else {
+      html += `<div class="stock-item" id="totalStock-item-${s.code}">
+        <div class="stock-row" onclick="toggleTotalStockDetail('${s.code}')">
+          <div class="stock-name-col">
+            <span class="s-name">${s.name || s.code}</span>
+            <span class="s-code">${s.code}</span>
+          </div>
+          <span class="col-r">${fmtQty(s.qty)}</span>
+          <span class="col-r ${pc(pl)}">${fmtPL(pl)}</span>
+          <span class="col-chev ${isOpen ? "open" : ""}">›</span>
+        </div>
+        <div class="detail-panel ${isOpen ? "" : "hidden"}" id="totalStock-panel-${s.code}">
+          ${isOpen ? buildTotalStockDetailHTML(s) : ""}
+        </div>
+      </div>`;
+    }
   });
 
   const totalPL = totalValue - totalCost;
@@ -805,6 +930,9 @@ async function renderTotalStockPage(e) {
       <span class="sum-label">總成本</span><span class="sum-val">${fmtAmount(totalCost)}</span>
     </div>
   `;
+  if (totalStockEditMode) {
+    bindTotalStockDragEvents();
+  }
 
 }
 

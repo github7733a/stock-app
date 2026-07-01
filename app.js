@@ -43,12 +43,16 @@ function bindQtyFormat(el) {
 /* ── Tab ────────────────────────────────────────────────────── */
 let currentTab = "stocks";
 function switchTab(tab) {
-  closeOverlay("overlay-totalStock");
   document.querySelectorAll(".page").forEach(p=>p.classList.add("hidden"));
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+
   $(`page-${tab}`).classList.remove("hidden");
-  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add("active");
+
+  const tabBtn = document.querySelector(`.tab[data-tab="${tab}"]`);
+  if (tabBtn) tabBtn.classList.add("active");
+
   currentTab = tab;
+
   if (tab==="stocks")  renderStockPage("stocks");
   if (tab==="pledge")  renderStockPage("pledge");
   if (tab==="balance") renderBalancePage();
@@ -676,7 +680,7 @@ async function renderBalancePage() {
 
     html += `<div class="acc-group-title">
       <span>股票</span>
-      <button class="acc-group-link" onclick="openTotalStockOverlay(event)">
+      <button class="acc-group-link" onclick="renderTotalStockPage();">
         ${fmtMoney(stockGroupTotal)}
       </button>
     </div>`;
@@ -703,7 +707,7 @@ async function renderBalancePage() {
 
 let totalStockExpanded = null;
 
-async function openTotalStockOverlay(e) {
+async function renderTotalStockPage(e) {
   if (e) e.stopPropagation();
 
   const normalStocks = await idb.all(stockDb, "stocks");
@@ -780,7 +784,10 @@ async function openTotalStockOverlay(e) {
     </div>
   `;
 
-  openOverlay("overlay-totalStock");
+  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+  $("page-totalStock").classList.remove("hidden");
+
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
 }
 
 async function toggleTotalStockDetail(code) {
@@ -797,7 +804,7 @@ async function toggleTotalStockDetail(code) {
   }
 
   totalStockExpanded = code;
-  openTotalStockOverlay();
+  renderTotalStockPage();
 }
 
 function buildTotalStockDetailHTML(s) {

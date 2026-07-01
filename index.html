@@ -51,7 +51,6 @@
 <!-- ══ OVERLAY: 帳戶明細 ══ -->
 <div id="overlay-account" class="overlay hidden">
   <div class="overlay-topbar">
-    <button class="back-btn" onclick="closeAccountDetail()">‹ 返回</button>
     <span id="ov-acc-name" class="topbar-title">帳戶</span>
     <button class="danger-text-btn" onclick="deleteCurrentAccount()">刪除</button>
   </div>
@@ -385,12 +384,24 @@
   </div>
 </div>
 
-<!-- ══ OVERLAY: 股票總覽 ══ -->
-<div id="overlay-totalStock" class="overlay hidden">
-  <<div class="overlay-topbar">
-    <span style="width:52px;"></span>
-    <span class="topbar-title">股票總覽</span>
-    <span style="width:52px;"></span>
+  <!-- ══ PAGE: 股票總覽 ══ -->
+  <div id="page-totalStock" class="page hidden">
+    <div class="topbar">
+      <span class="topbar-title">股票總覽</span>
+    </div>
+
+    <div class="main-card">
+      <div class="table-header">
+        <span>股名</span>
+        <span class="col-r">股數</span>
+        <span class="col-r">總損益</span>
+        <span class="col-chev"></span>
+      </div>
+
+      <div id="totalStockRows"></div>
+
+      <div class="summary-block" id="totalStockSummary"></div>
+    </div>
   </div>
 
   <div class="overlay-body">
